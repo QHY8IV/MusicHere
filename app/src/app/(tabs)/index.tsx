@@ -20,7 +20,7 @@ export default function DiscoverTab() {
 function Discover({ coords }: { coords: Coords }) {
   const router = useRouter();
   const { user } = useAuth();
-  const { refresh } = useLocation();
+  const { refresh, isDemo } = useLocation();
   const [shuffling, setShuffling] = useState(false);
   // 坐标精确到 ~10 米作为依赖，避免 GPS 微小抖动触发重复请求
   const key = `${coords.lat.toFixed(4)},${coords.lng.toFixed(4)}`;
@@ -54,6 +54,7 @@ function Discover({ coords }: { coords: Coords }) {
   return (
     <Screen onRefresh={pull} refreshing={disc.loading && !shuffling}>
       <Title>此刻，这里</Title>
+      {isDemo ? <Muted>正在使用示例位置（上海外滩）。在手机上授权定位后会显示你身边的地点。</Muted> : null}
 
       {currentPlace ? (
         <Card style={styles.here}>

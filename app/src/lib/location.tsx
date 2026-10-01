@@ -19,9 +19,24 @@ export interface Coords {
 
 type Status = 'loading' | 'ready' | 'denied' | 'unavailable';
 
+/**
+ * 演示位置：构建时设置 EXPO_PUBLIC_DEMO_LOCATION="纬度,经度"（与 seed 的坐标一致）后，
+ * 拿不到真实定位的访客（不在示例数据附近、或网页不是 HTTPS 无法定位）可以一键使用该位置体验完整流程。
+ */
+export function demoLocation(): Coords | null {
+  const raw = process.env.EXPO_PUBLIC_DEMO_LOCATION;
+  if (!raw) return null;
+  const [lat, lng] = raw.split(',').map(Number);
+  return Number.isFinite(lat) && Number.isFinite(lng) ? { lat: lat!, lng: lng!, accuracy: null } : null;
+}
+
 interface LocationState {
   status: Status;
   coords: Coords | null;
+  /** 当前是否在使用演示位置 */
+  isDemo: boolean;
+  /** 使用演示位置（未配置演示位置时为 null） */
+  useDemo: (() => void) | null;
   /** 重新请求权限并取一次最新位置 */
   refresh: () => Promise<Coords | null>;
 }
@@ -31,6 +46,7 @@ const LocationContext = createContext<LocationState | null>(null);
 export function LocationProvider({ children }: { children: ReactNode }) {
   const [status, setStatus] = useState<Status>('loading');
   const [coords, setCoords] = useState<Coords | null>(null);
+  const [isDemo, setIsDemo] = useState(false);
   const inflight = useRef<Promise<Coords | null> | null>(null);
 
   const refresh = useCallback(() => {
@@ -52,6 +68,7 @@ export function LocationProvider({ children }: { children: ReactNode }) {
           accuracy: pos.coords.accuracy ?? null,
         };
         setCoords(next);
+        setIsDemo(false);
         setStatus('ready');
         return next;
       } catch {
@@ -69,7 +86,24 @@ export function LocationProvider({ children }: { children: ReactNode }) {
     void refresh();
   }, [refresh]);
 
-  const value = useMemo(() => ({ status, coords, refresh }), [status, coords, refresh]);
+  const demo = demoLocation();
+  const useDemo = useMemo(
+    () =>
+      demo
+        ? () => {
+            setCoords(demo);
+            setIsDemo(true);
+            setStatus('ready');
+          }
+        : null,
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [demo?.lat, demo?.lng],
+  );
+
+  const value = useMemo(
+    () => ({ status, coords, isDemo, useDemo, refresh }),
+    [status, coords, isDemo, useDemo, refresh],
+  );
   return <LocationContext.Provider value={value}>{children}</LocationContext.Provider>;
 }
 

@@ -130,13 +130,21 @@ export interface NewPlaceSong {
 /**
  * 解析后端地址：
  *  1. EXPO_PUBLIC_API_URL 显式指定（真机/线上）
- *  2. 开发服务器的 hostUri（Expo Go 扫码时就是开发机的局域网 IP）→ 同一台机器的 3000 端口
- *  3. Android 模拟器 10.0.2.2；其他情况 localhost
+ *  2. web 版部署在线上（非 localhost）时，用页面自身的 origin（由反向代理把 /api 转给后端）
+ *  3. 开发服务器的 hostUri（Expo Go 扫码时就是开发机的局域网 IP）→ 同一台机器的 3000 端口
+ *  4. Android 模拟器 10.0.2.2；其他情况 localhost
  */
 export function apiBase(): string {
   const explicit = process.env.EXPO_PUBLIC_API_URL;
   if (explicit) return explicit.replace(/\/+$/, '');
   const hostUri = Constants.expoConfig?.hostUri;
+  if (
+    Platform.OS === 'web' &&
+    typeof window !== 'undefined' &&
+    !/^(localhost|127\.|\[::1\])/.test(window.location.hostname)
+  ) {
+    return window.location.origin;
+  }
   if (hostUri && Platform.OS !== 'web') return `http://${hostUri.split(':')[0]}:3000`;
   if (Platform.OS === 'android') return 'http://10.0.2.2:3000';
   return 'http://localhost:3000';

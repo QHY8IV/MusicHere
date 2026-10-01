@@ -45,6 +45,7 @@ npm run dev                                         # http://localhost:3000
 | `PORT` | `3000` | 监听端口 |
 | `DB_PATH` | `musichere.db` | SQLite 文件路径 |
 | `ADMIN_KEY` | 空 | 设置后才会开启官方记录导入接口（见下） |
+| `WEB_DIR` | 空 | 设置为 web 构建目录后，由后端直接托管页面（单页应用回退 + 静态资源长缓存） |
 | `UPLOAD_DIR` | `uploads` | 用户上传的地点图片存放目录（需要持久化；生产环境建议换成对象存储 / CDN） |
 
 ### 2. 启动手机端
@@ -80,6 +81,23 @@ curl -X POST localhost:3000/api/admin/import \
 ```
 
 导入是幂等的（同一地点同一首歌不会重复），且整批要么全成功要么全回滚。
+
+## 部署演示站（Linux 服务器）
+
+一个 Node 进程同时提供 API 和 web 页面（端口 80），用 systemd 托管。在**你自己的电脑**上执行：
+
+```bash
+./deploy/deploy.sh root@<服务器IP>
+```
+
+它会：构建 web 版 → 打包 → `scp` 上传 → 在服务器上安装 Node 22（如缺）、`npm ci`、首次部署导入示例数据（上海外滩一带）、注册并启动 `musichere` 服务。可重复运行用来升级，数据库和用户上传的图片会保留（数据在 `/var/lib/musichere`）。
+
+- 请先配好 SSH 密钥（`ssh-copy-id root@<IP>`），**不要把密码写进脚本或命令行**。也建议改用普通用户 + sudo，而不是 root 直连。
+- 云服务器还需要在控制台的**安全组**放行入方向 TCP 80。国内服务器如果用域名访问 80/443，需要 ICP 备案；直接用 IP 访问不受影响。
+- **浏览器只在 HTTPS（或 localhost）下允许网页读取定位**，所以纯 `http://IP` 访问时访客拿不到位置。演示站构建时开启了 `EXPO_PUBLIC_DEMO_LOCATION`，此时页面上会出现“使用示例位置体验（上海外滩）”按钮，访客不在上海也能体验完整流程。要让真实定位可用，请在前面加一层 HTTPS（例如装 Caddy：`caddy reverse-proxy --from your.domain --to :80`，需要域名解析到服务器）。
+- 修改示例坐标：`DEMO_LOCATION=纬度,经度 ./deploy/deploy.sh …`（页面兜底位置）和服务器上的 `DEMO_LAT` / `DEMO_LNG`（首次导入示例数据的位置）。
+- 查看日志：`journalctl -u musichere -f`；重启：`systemctl restart musichere`。
+- 脚本在本机用模拟的 ssh / systemd 完整跑通过（构建 → 打包 → 安装依赖 → 导入数据 → 启动 → 健康检查，并用浏览器验证）；“自动安装 Node”和真实 systemd 托管这两段只能在真实服务器上验证。
 
 ## 推荐是怎么工作的
 
@@ -126,7 +144,7 @@ curl -X POST localhost:3000/api/admin/import \
 ## 测试
 
 ```bash
-cd server && npm test          # 56 个测试：权重 / 抽样 / 地理函数 + 全部 API 行为（含图片上传的格式 / 大小 / 权限）
+cd server && npm test          # 58 个测试：权重 / 抽样 / 地理函数 + 全部 API 行为（含图片上传的格式 / 大小 / 权限）
 cd server && npm run typecheck
 cd app && npm run typecheck
 ```

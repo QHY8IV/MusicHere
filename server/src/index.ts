@@ -10,6 +10,7 @@ const app = await buildApp({
   db,
   adminKey: process.env.ADMIN_KEY || null,
   uploadDir: process.env.UPLOAD_DIR ?? 'uploads',
+  webDir: process.env.WEB_DIR || undefined,
   logger: true,
 });
 

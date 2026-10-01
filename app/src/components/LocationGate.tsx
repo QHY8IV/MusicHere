@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { Linking, Platform } from 'react-native';
+import { Linking, Platform, View } from 'react-native';
 import { useLocation, type Coords } from '../lib/location';
 import { Button, EmptyState, Loading } from './ui';
 
@@ -8,10 +8,21 @@ import { Button, EmptyState, Loading } from './ui';
  * 否则展示对应的引导（加载中 / 未授权 / 取不到位置）。
  */
 export function LocationGate({ children }: { children: (coords: Coords) => ReactNode }) {
-  const { status, coords, refresh } = useLocation();
+  const { status, coords, refresh, useDemo } = useLocation();
 
   if (coords) return <>{children(coords)}</>;
-  if (status === 'loading') return <Loading label="正在获取你的位置…" />;
+  if (status === 'loading') {
+    return (
+      <>
+        <Loading label="正在获取你的位置…" />
+        {useDemo ? (
+          <View style={{ alignItems: 'center' }}>
+            <Button label="使用示例位置体验（上海外滩）" icon="map" variant="ghost" onPress={useDemo} testID="use-demo-location" />
+          </View>
+        ) : null}
+      </>
+    );
+  }
 
   const denied = status === 'denied';
   return (
@@ -28,6 +39,9 @@ export function LocationGate({ children }: { children: (coords: Coords) => React
           <Button label={denied ? '授予权限' : '重试'} icon="locate" onPress={() => void refresh()} />
           {denied && Platform.OS !== 'web' ? (
             <Button label="去系统设置" variant="ghost" onPress={() => void Linking.openSettings()} />
+          ) : null}
+          {useDemo ? (
+            <Button label="使用示例位置体验（上海外滩）" icon="map" variant="ghost" onPress={useDemo} testID="use-demo-location" />
           ) : null}
         </>
       }
