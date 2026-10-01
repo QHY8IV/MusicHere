@@ -1,8 +1,9 @@
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
-import { StyleSheet, Text } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import { LocationGate } from '../../components/LocationGate';
 import { PlaceCard } from '../../components/PlaceCard';
+import { PlaceCover } from '../../components/PlaceCover';
 import { SongCard } from '../../components/SongCard';
 import { Button, Card, EmptyState, ErrorState, Loading, Muted, Screen, SectionTitle, Title } from '../../components/ui';
 import { api, type DiscoverResult, type PlaceSong } from '../../lib/api';
@@ -56,17 +57,21 @@ function Discover({ coords }: { coords: Coords }) {
 
       {currentPlace ? (
         <Card style={styles.here}>
-          <Text style={styles.hereLabel}>你正在</Text>
-          <Text style={styles.hereName} testID="current-place">{currentPlace.name}</Text>
-          <Muted>
-            {currentPlace.songCount} 首歌 · {currentPlace.visitorCount} 人来过
-          </Muted>
-          <Button
-            label="查看并打卡"
-            icon="flag"
-            onPress={() => router.push(`/place/${currentPlace.id}`)}
-            testID="go-checkin"
-          />
+          <PlaceCover place={currentPlace} height={170}>
+            <Text style={styles.hereLabel}>你正在</Text>
+            <Text style={styles.hereName} testID="current-place">{currentPlace.name}</Text>
+            <Text style={styles.hereMeta}>
+              {currentPlace.songCount} 首歌 · {currentPlace.visitorCount} 人来过
+            </Text>
+          </PlaceCover>
+          <View style={{ padding: 14 }}>
+            <Button
+              label="查看并打卡"
+              icon="flag"
+              onPress={() => router.push(`/place/${currentPlace.id}`)}
+              testID="go-checkin"
+            />
+          </View>
         </Card>
       ) : (
         <Card>
@@ -122,7 +127,8 @@ function Discover({ coords }: { coords: Coords }) {
 }
 
 const styles = StyleSheet.create({
-  here: { borderColor: colors.accent },
+  here: { borderColor: colors.accent, padding: 0, gap: 0, overflow: 'hidden' },
+  hereMeta: { color: 'rgba(255,255,255,0.8)', fontSize: 13 },
   hereLabel: { color: colors.accent, fontSize: 12, fontWeight: '800', letterSpacing: 1 },
-  hereName: { color: colors.text, fontSize: 22, fontWeight: '800' },
+  hereName: { color: '#fff', fontSize: 26, fontWeight: '900' },
 });

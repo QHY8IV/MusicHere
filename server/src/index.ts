@@ -9,6 +9,7 @@ const db = openDb(dbPath);
 const app = await buildApp({
   db,
   adminKey: process.env.ADMIN_KEY || null,
+  uploadDir: process.env.UPLOAD_DIR ?? 'uploads',
   logger: true,
 });
 

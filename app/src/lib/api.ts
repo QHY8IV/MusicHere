@@ -38,6 +38,10 @@ export interface Place {
   lat: number;
   lng: number;
   radiusM: number;
+  /** 背景图路径（`/api/uploads/…` 或 http(s) 外链），没有则为 null */
+  imageUrl: string | null;
+  /** 当前用户能否设置/更换封面 */
+  canSetImage: boolean;
   createdAt: string;
   distanceM: number | null;
   songCount: number;
@@ -161,15 +165,17 @@ export function setUnauthorizedHandler(fn: (() => void) | null) {
 }
 
 async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
+  const isForm = typeof FormData !== 'undefined' && body instanceof FormData;
   let res: Response;
   try {
     res = await fetch(`${apiBase()}/api${path}`, {
       method,
       headers: {
-        ...(body !== undefined ? { 'content-type': 'application/json' } : {}),
+        // FormData 不能手动设 content-type，否则会缺 multipart 的 boundary
+        ...(body !== undefined && !isForm ? { 'content-type': 'application/json' } : {}),
         ...(token ? { authorization: `Bearer ${token}` } : {}),
       },
-      ...(body !== undefined ? { body: JSON.stringify(body) } : {}),
+      ...(body !== undefined ? { body: isForm ? (body as FormData) : JSON.stringify(body) } : {}),
     });
   } catch {
     throw new ApiError(0, 'network', `连不上服务器（${apiBase()}），请检查网络或后端是否已启动`);
@@ -193,7 +199,33 @@ const qs = (params: Record<string, string | number | undefined>) => {
 
 type Pos = { lat: number; lng: number };
 
+/** 把服务端返回的图片路径变成可直接给 <Image> 的地址。 */
+export function imageUri(path: string | null | undefined): string | null {
+  if (!path) return null;
+  return path.startsWith('/') ? `${apiBase()}${path}` : path;
+}
+
+export interface PickedImage {
+  uri: string;
+  mimeType: string;
+  fileName: string;
+}
+
+async function uploadPlaceImage(placeId: string, img: PickedImage) {
+  const form = new FormData();
+  if (Platform.OS === 'web') {
+    // web 上 uri 是 blob:/data: 地址，要先取成 Blob
+    const blob = await (await fetch(img.uri)).blob();
+    form.append('file', blob, img.fileName);
+  } else {
+    // React Native 的 FormData 接受 { uri, name, type }
+    form.append('file', { uri: img.uri, name: img.fileName, type: img.mimeType } as unknown as Blob);
+  }
+  return request<{ place: Place }>('POST', `/places/${placeId}/image`, form);
+}
+
 export const api = {
+  uploadPlaceImage,
   guest: (nickname: string) =>
     request<{ user: User; token: string }>('POST', '/auth/guest', { nickname }),
   me: () => request<{ user: User; stats: Stats }>('GET', '/me'),

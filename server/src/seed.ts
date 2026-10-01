@@ -5,11 +5,14 @@
  *
  * 会写入 DB_PATH（默认 musichere.db）。重复执行是安全的：同名地点/同一首歌会复用。
  */
+import { copyFileSync, mkdirSync } from 'node:fs';
+import { join } from 'node:path';
 import { openDb, transaction } from './db.ts';
 import type { Deps } from './http.ts';
 import { addComment } from './services/comments.ts';
 import { createPlace, type Category } from './services/places.ts';
 import { addPlaceSong, setVote, type AddPlaceSongInput } from './services/placeSongs.ts';
+import { UPLOAD_PREFIX } from './services/images.ts';
 import { createGuest } from './services/users.ts';
 
 function arg(name: string, fallback: number): number {
@@ -25,10 +28,12 @@ const at = (northM: number, eastM: number) => ({
 });
 
 const db = openDb(process.env.DB_PATH ?? 'musichere.db');
-const deps: Deps = { db, now: () => new Date(), rng: Math.random, adminKey: null };
+const deps: Deps = { db, now: () => new Date(), rng: Math.random, adminKey: null, uploadDir: process.env.UPLOAD_DIR ?? 'uploads' };
 
 interface Spot {
   name: string;
+  /** seed-images/ 下的封面图文件名（不含扩展名） */
+  image: string;
   category: Category;
   description: string;
   offset: [number, number];
@@ -42,6 +47,7 @@ interface Spot {
 const spots: Spot[] = [
   {
     name: '江边步道',
+    image: 'riverside',
     category: 'street',
     description: '傍晚沿江散步，风和灯都刚刚好。',
     offset: [0, 0],
@@ -68,6 +74,7 @@ const spots: Spot[] = [
   },
   {
     name: '街角咖啡馆',
+    image: 'cafe',
     category: 'cafe',
     description: '木质桌椅，下午常有人写东西。',
     offset: [120, 60],
@@ -80,6 +87,7 @@ const spots: Spot[] = [
   },
   {
     name: '地铁口广场',
+    image: 'station',
     category: 'station',
     description: '人来人往，周末常有即兴演出。',
     offset: [-180, 140],
@@ -110,6 +118,7 @@ const spots: Spot[] = [
   },
   {
     name: '小公园长椅',
+    image: 'park',
     category: 'park',
     description: '树荫下的长椅，能听见远处的喷泉。',
     offset: [260, -150],
@@ -131,6 +140,12 @@ transaction(db, () => {
       category: spot.category,
       ...at(n, e),
     });
+
+    // 封面：复制到上传目录，文件名固定，重复 seed 时覆盖同一个文件
+    const file = `seed-${spot.image}.jpg`;
+    mkdirSync(deps.uploadDir, { recursive: true });
+    copyFileSync(join(import.meta.dirname, '..', 'seed-images', `${spot.image}.jpg`), join(deps.uploadDir, file));
+    db.prepare('UPDATE places SET image_url = ? WHERE id = ?').run(UPLOAD_PREFIX + file, place.id);
 
     for (const { by, ...song } of spot.songs) {
       addPlaceSong(deps, users[by]!.id, place.id, song);

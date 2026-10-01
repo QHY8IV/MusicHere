@@ -14,6 +14,8 @@ export interface Deps {
   rng: () => number;
   /** 官方记录导入接口的密钥；为 null 时该接口整体关闭。 */
   adminKey: string | null;
+  /** 用户上传的地点图片存放目录 */
+  uploadDir: string;
 }
 
 export class HttpError extends Error {

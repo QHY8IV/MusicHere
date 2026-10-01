@@ -6,6 +6,7 @@ import {
   checkIn,
   createPlace,
   getPlace,
+  setPlaceImage,
   myCheckins,
   placesNear,
   visitorCount,
@@ -25,6 +26,7 @@ import {
   setCommentLike,
 } from '../services/comments.ts';
 import { discover } from '../services/discover.ts';
+import { removeUploaded, saveImage } from '../services/images.ts';
 import { KINDS } from '../services/placeSongs.ts';
 import {
   commentInput,
@@ -99,7 +101,8 @@ export function privateRoutes(deps: Deps) {
 
     app.post('/places', async (req, reply) => {
       const user = requireUser(req);
-      const body = parse(placeInput, req.body);
+      // 外链封面只允许官方导入指定；普通用户通过上传接口设置封面
+      const body = parse(placeInput.omit({ imageUrl: true }), req.body);
       const result = createPlace(deps, user.id, body);
       reply.code(result.created ? 201 : 200);
       return result;
@@ -110,6 +113,27 @@ export function privateRoutes(deps: Deps) {
       const { id } = parse(idParam, req.params);
       const q = parse(z.object({ lat: lat.optional(), lng: lng.optional() }), req.query);
       return { place: getPlace(deps, id, { userId: user.id, ...q }) };
+    });
+
+    // ---- 地点封面：multipart/form-data，字段名任意，只收一个图片文件 ----
+    app.post('/places/:id/image', async (req) => {
+      const user = requireUser(req);
+      const { id } = parse(idParam, req.params);
+      getPlace(deps, id, { userId: user.id }); // 404 if missing
+      if (!req.isMultipart()) throw new HttpError(400, 'validation', '请以 multipart/form-data 上传图片');
+      const file = await req.file();
+      if (!file) throw new HttpError(400, 'validation', '请选择一张图片');
+      const buf = await file.toBuffer();
+      if (file.file.truncated) throw new HttpError(413, 'too_large', '图片不能超过 5MB');
+      const path = saveImage(deps.uploadDir, buf);
+      try {
+        const { place, previous } = setPlaceImage(deps, user.id, id, path);
+        removeUploaded(deps.uploadDir, previous);
+        return { place };
+      } catch (err) {
+        removeUploaded(deps.uploadDir, path); // 没有权限等情况：别留下孤儿文件
+        throw err;
+      }
     });
 
     // ---- 打卡：成功后直接带回三类歌曲 ----

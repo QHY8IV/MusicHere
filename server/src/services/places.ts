@@ -24,6 +24,8 @@ interface PlaceRow {
   lat: number;
   lng: number;
   radius_m: number;
+  image_url: string | null;
+  created_by: string | null;
   created_at: string;
 }
 
@@ -35,6 +37,10 @@ export interface PlaceDto {
   lat: number;
   lng: number;
   radiusM: number;
+  /** 背景图：`/api/uploads/…`（本服务保存的）或 http(s) 外链；没有则为 null，客户端用渐变兜底 */
+  imageUrl: string | null;
+  /** 当前用户能否设置/更换封面：还没有图，或者是地点的创建者 */
+  canSetImage: boolean;
   createdAt: string;
   distanceM: number | null;
   songCount: number;
@@ -51,6 +57,7 @@ function toDto(
   counts: { songs: number; visitors: number; comments: number },
   top: PlaceSongDto | undefined,
   distanceM: number | null,
+  userId: string | null,
 ): PlaceDto {
   return {
     id: p.id,
@@ -60,6 +67,8 @@ function toDto(
     lat: p.lat,
     lng: p.lng,
     radiusM: p.radius_m,
+    imageUrl: p.image_url,
+    canSetImage: !!userId && (p.image_url === null || p.created_by === userId),
     createdAt: p.created_at,
     distanceM: distanceM === null ? null : Math.round(distanceM),
     songCount: counts.songs,
@@ -116,6 +125,7 @@ function buildDtos(
       },
       topByPlace.get(place.id),
       distanceM,
+      userId,
     ),
   );
 }
@@ -185,6 +195,8 @@ export interface CreatePlaceInput {
   description?: string | undefined;
   category?: Category | undefined;
   radiusM?: number | undefined;
+  /** http(s) 外链（官方导入用）；用户上传的图片走 setPlaceImage */
+  imageUrl?: string | undefined;
 }
 
 const normName = (s: string) => s.normalize('NFKC').trim().toLowerCase().replace(/\s+/g, ' ');
@@ -206,8 +218,8 @@ export function createPlace(
   const id = randomUUID();
   deps.db
     .prepare(
-      `INSERT INTO places (id, name, description, category, lat, lng, radius_m, created_by, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO places (id, name, description, category, lat, lng, radius_m, image_url, created_by, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
     .run(
       id,
@@ -217,10 +229,29 @@ export function createPlace(
       input.lat,
       input.lng,
       input.radiusM ?? DEFAULT_RADIUS_M,
+      input.imageUrl ?? null,
       userId,
       deps.now().toISOString(),
     );
   return { place: getPlace(deps, id, { userId }), created: true };
+}
+
+/**
+ * 设置地点封面。地点还没有图时任何登录用户都可以补一张；已有图时只有创建者可以更换，
+ * 避免别人把大家都认可的封面顶掉。返回被替换掉的旧路径，由调用方决定是否回收文件。
+ */
+export function setPlaceImage(
+  deps: Deps,
+  userId: string,
+  placeId: string,
+  imageUrl: string,
+): { place: PlaceDto; previous: string | null } {
+  const place = getPlaceRow(deps, placeId);
+  if (place.image_url !== null && place.created_by !== userId) {
+    throw new HttpError(403, 'forbidden', '这个地点已经有封面了，只有创建者可以更换');
+  }
+  deps.db.prepare('UPDATE places SET image_url = ? WHERE id = ?').run(imageUrl, placeId);
+  return { place: getPlace(deps, placeId, { userId }), previous: place.image_url };
 }
 
 /** 打卡允许的误差：在地点半径基础上再放宽 50 米，兼顾 GPS 漂移。 */

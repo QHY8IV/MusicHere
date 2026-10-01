@@ -11,6 +11,7 @@ const assert = require('node:assert/strict');
 const path = require('node:path');
 const fs = require('node:fs');
 const WEB_URL = process.env.WEB_URL || 'http://localhost:8081/';
+const PHOTO = path.join(__dirname, '..', 'server', 'seed-images', 'park.jpg'); // 当作用户拍的照片
 const OUT = process.env.E2E_OUT || path.join(__dirname, 'out');
 fs.mkdirSync(OUT, { recursive: true });
 
@@ -41,6 +42,7 @@ const FAR = { latitude: 31.24 + 450 / 111195, longitude: 121.49, accuracy: 20 };
   };
   const shot = (n) => page.screenshot({ path: `${OUT}/shot-${n}.png`, fullPage: true });
   const T = (id) => page.getByTestId(id);
+  const V = (id) => page.locator(`[data-testid=${id}]:visible`); // 页面栈里有隐藏的屏幕，只看可见的
 
   await page.goto(WEB_URL);
 
@@ -58,6 +60,9 @@ const FAR = { latitude: 31.24 + 450 / 111195, longitude: 121.49, accuracy: 20 };
     assert.equal(await T('current-place').innerText(), '江边步道');
     await T('song-title').first().waitFor();
     assert.ok((await T('song-title').count()) >= 1);
+    // 当前地点卡片以地点图片为背景
+    await T('place-cover-image').first().waitFor();
+    assert.match(await T('place-cover-image').first().locator('img').getAttribute('src'), /\/api\/uploads\/seed-riverside\.jpg/);
     await shot('2-discover');
   });
 
@@ -83,6 +88,8 @@ const FAR = { latitude: 31.24 + 450 / 111195, longitude: 121.49, accuracy: 20 };
     await T('place-name-title').waitFor();
     await T('checkin').click();
     await T('checkin-done').waitFor();
+    await T('place-cover-image').last().waitFor();
+    assert.equal(await V('cover-library').count(), 0, '别人创建且已有封面的地点，不应出现更换封面按钮');
     const txt = await T('checkin-done').innerText();
     assert.match(txt, /应景/); assert.match(txt, /常听/); assert.match(txt, /现场/);
     assert.match(txt, /第 \d+ 位/);
@@ -134,6 +141,9 @@ const FAR = { latitude: 31.24 + 450 / 111195, longitude: 121.49, accuracy: 20 };
     assert.equal(border, 'rgb(255, 122, 89)', '来源地点应被预选（强调色边框）');
     await T('new-place').click();
     await T('place-name').fill('测试角落');
+    const [chooser] = await Promise.all([page.waitForEvent('filechooser'), V('cover-library').click()]);
+    await chooser.setFiles(PHOTO);
+    await T('cover-preview').waitFor();
     await T('kind-live').click();
     await T('submit-song').click(); // 缺歌名
     await T('form-error').waitFor();
@@ -144,6 +154,9 @@ const FAR = { latitude: 31.24 + 450 / 111195, longitude: 121.49, accuracy: 20 };
     await shot('6-add');
     await T('submit-song').click();
     await page.locator('[data-testid=place-name-title]', { hasText: '测试角落' }).waitFor();
+    // 新建地点时选的照片已成为该地点的封面（创建者本人）
+    await T('place-cover-image').last().waitFor();
+    assert.match(await T('place-cover-image').last().locator('img').getAttribute('src'), /\/api\/uploads\/[0-9a-f-]{36}\.jpg/);
     await T('tab-live').last().click();
     await page.getByText('地铁口歌手').waitFor();
   });
@@ -159,14 +172,46 @@ const FAR = { latitude: 31.24 + 450 / 111195, longitude: 121.49, accuracy: 20 };
     await shot('7-me');
   });
 
-  await step('离开现场后：打卡按钮不可用并说明距离', async () => {
-    await ctx.setGeolocation(FAR);
+  await step('无图地点用渐变兜底；创建者可补封面', async () => {
+    // 直接用本机登录态的 token 建一个不带图的地点
+    const made = await page.evaluate(async () => {
+      const { token } = JSON.parse(localStorage.getItem('musichere.session.v1'));
+      const r = await fetch('http://localhost:3000/api/places', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', authorization: `Bearer ${token}` },
+        body: JSON.stringify({ name: '无图角落', lat: 31.2402, lng: 121.4902 }),
+      });
+      return r.json();
+    });
+    assert.equal(made.place.imageUrl, null);
+    assert.equal(made.place.canSetImage, true);
+
     await page.reload();
-    // 登录态由本地存储恢复，页面停在“我的”；定位已变成 450 米外
     await T('nickname-display').waitFor();
     await page.getByText('地点', { exact: true }).last().click();
-    await page.getByText('附近的地点').waitFor();
-    await page.getByText('江边步道').first().click();
+    const card = page.getByTestId('place-card').filter({ hasText: '无图角落' });
+    await card.waitFor();
+    assert.equal(await card.getByTestId('place-cover').count(), 1, '无图也应有封面容器');
+    assert.equal(await card.getByTestId('place-cover-image').count(), 0, '无图时不渲染 <Image>，用渐变');
+    await shot('9-places-covers');
+
+    await card.click();
+    await page.locator('[data-testid=place-name-title]', { hasText: '无图角落' }).waitFor();
+    const [fc] = await Promise.all([page.waitForEvent('filechooser'), V('cover-library').click()]);
+    await fc.setFiles(PHOTO);
+    await page.getByText('封面已更新').waitFor();
+    await T('place-cover-image').last().waitFor();
+    assert.equal(await V('cover-library').count(), 1, '创建者仍可更换自己创建的地点封面');
+    await shot('10-cover-set');
+  });
+
+  await step('离开现场后：打卡按钮不可用并说明距离', async () => {
+    await ctx.setGeolocation(FAR);
+    await page.goto(WEB_URL); // 登录态由本地存储恢复；定位已变成 450 米外
+    await page.getByText('此刻，这里').waitFor();
+    await page.getByText('地点', { exact: true }).last().click();
+    await V('place-card').first().waitFor();
+    await V('place-card').filter({ hasText: '江边步道' }).first().click();
     await T('place-name-title').waitFor();
     await page.getByText(/进入 \d+ 米范围内即可打卡/).waitFor();
     let posted = false;

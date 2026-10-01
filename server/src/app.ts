@@ -1,9 +1,11 @@
 import cors from '@fastify/cors';
+import multipart from '@fastify/multipart';
 import Fastify, { type FastifyInstance } from 'fastify';
 import { HttpError, type Deps } from './http.ts';
 import { adminRoutes } from './routes/admin.ts';
 import { privateRoutes } from './routes/private.ts';
 import { publicRoutes } from './routes/public.ts';
+import { MAX_IMAGE_BYTES } from './services/images.ts';
 
 export type AppOptions = Partial<Omit<Deps, 'db'>> & Pick<Deps, 'db'> & { logger?: boolean };
 
@@ -13,9 +15,11 @@ export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
     now: options.now ?? (() => new Date()),
     rng: options.rng ?? Math.random,
     adminKey: options.adminKey ?? null,
+    uploadDir: options.uploadDir ?? 'uploads',
   };
 
   const app = Fastify({ logger: options.logger ?? false, bodyLimit: 64 * 1024 });
+  await app.register(multipart, { limits: { fileSize: MAX_IMAGE_BYTES, files: 1, fields: 0 } });
   await app.register(cors, { origin: true, methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'] });
 
   app.setErrorHandler((err, _req, reply) => {

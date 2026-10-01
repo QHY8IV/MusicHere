@@ -14,6 +14,7 @@
 | 按定位随机推荐前人听过的歌 | 「发现」页：以当前定位为中心，对附近地点的所有歌做加权随机抽样，「换一批」可重抽 |
 | 打卡地点 | 地点页「在这里打卡」，服务端校验你确实在现场；打卡成功后展示该地点 **应景 / 常听 / 现场** 三类歌曲 |
 | 点赞等改变推荐权重 | 每条歌曲可 **点赞 / 点踩 / 我也在听**，直接改变它的排序和被推荐的概率 |
+| 地点背景图 | 每个地点以一张图片作背景（发现页、地点列表、地点详情）。新建地点时可拍照 / 选相册，之后在地点页也能补或换封面；没有图的地点用按地点固定的渐变色兜底。官方导入可直接给图片外链 |
 | 地点评论 | 地点页「评论」：文字 + 心情标签 + 可关联这里的一首歌，评论本身也可点赞 |
 
 ## 目录
@@ -44,6 +45,7 @@ npm run dev                                         # http://localhost:3000
 | `PORT` | `3000` | 监听端口 |
 | `DB_PATH` | `musichere.db` | SQLite 文件路径 |
 | `ADMIN_KEY` | 空 | 设置后才会开启官方记录导入接口（见下） |
+| `UPLOAD_DIR` | `uploads` | 用户上传的地点图片存放目录（需要持久化；生产环境建议换成对象存储 / CDN） |
 
 ### 2. 启动手机端
 
@@ -67,7 +69,7 @@ ADMIN_KEY=my-secret npm run dev   # 在 server/ 下
 curl -X POST localhost:3000/api/admin/import \
   -H 'x-admin-key: my-secret' -H 'content-type: application/json' -d '{
   "records": [{
-    "place": { "name": "音乐厅广场", "lat": 31.24, "lng": 121.49, "category": "venue" },
+    "place": { "name": "音乐厅广场", "lat": 31.24, "lng": 121.49, "category": "venue", "imageUrl": "https://example.com/hall.jpg" },
     "songs": [{
       "kind": "live", "title": "月光奏鸣曲", "artist": "贝多芬",
       "eventType": "concert", "performer": "市交响乐团",
@@ -108,7 +110,9 @@ curl -X POST localhost:3000/api/admin/import \
 | GET | `/discover?lat&lng&radius&limit` | 按定位随机推荐 + 当前所在地点 |
 | GET | `/places/nearby?lat&lng&radius` | 附近地点 |
 | POST | `/places` | 新建地点（200 米内同名自动合并） |
-| GET | `/places/:id` | 地点详情 |
+| GET | `/places/:id` | 地点详情（含 `imageUrl`、`canSetImage`） |
+| POST | `/places/:id/image` | 上传地点封面（`multipart/form-data`，JPG / PNG / WebP，≤ 5MB）。地点还没有图时任何人可补；已有图时只有创建者可换 |
+| GET | `/uploads/:name` | 读取已上传的图片（无需登录，文件名为随机 UUID） |
 | POST | `/places/:id/checkin` | 打卡（需在地点半径 + 50 米内；6 小时内重复只算一次），返回三类歌曲 |
 | GET / POST | `/places/:id/songs` | 地点的歌 / 上传歌（`kind`: `vibe` `frequent` `live`） |
 | PUT | `/place-songs/:id/vote` | `{value: 1 \| -1 \| 0}` 点赞 / 点踩 / 取消 |
@@ -122,7 +126,7 @@ curl -X POST localhost:3000/api/admin/import \
 ## 测试
 
 ```bash
-cd server && npm test          # 49 个测试：权重 / 抽样 / 地理函数 + 全部 API 行为
+cd server && npm test          # 56 个测试：权重 / 抽样 / 地理函数 + 全部 API 行为（含图片上传的格式 / 大小 / 权限）
 cd server && npm run typecheck
 cd app && npm run typecheck
 ```
@@ -144,11 +148,20 @@ cd e2e && npm install && npx playwright install chromium && npm run smoke
 # 已有 Chromium 时：CHROMIUM_PATH=/path/to/chromium npm run smoke
 ```
 
+## 地点图片
+
+- 手机端选图后先缩放到 1280 宽并压成 JPEG（通常 200–400KB）再上传，服务端上限 5MB。
+- 服务端**按文件头判断真实格式**（不信任扩展名 / `Content-Type`），只收 JPG / PNG / WebP；文件名用随机 UUID，读取接口用白名单正则校验文件名，杜绝路径穿越。
+- 外链图片（`imageUrl`）只有官方导入接口能设置，普通用户的新建地点会忽略该字段。
+- 权限：地点没有图 → 任何登录用户可补；已有图 → 仅创建者可换（换后自动回收旧文件），避免被别人顶掉。
+- 示例数据的 4 张封面是 `server/seed-images/` 里的插画，`npm run seed` 会把它们复制到上传目录。
+
 ## 已知限制 / 下一步
 
 - **身份是访客 token**：没有密码，退出或卸载后无法找回。上线前应接入手机号 / 第三方登录。
 - **没有内容审核与限流**：上传、评论目前只有格式和长度校验。公开发布前需要举报、屏蔽、频率限制。
 - **打卡防作弊较弱**：服务端只校验上报的坐标与地点的距离，无法识别伪造的 GPS。
+- **图片存在本机磁盘**：多实例部署或容器重建会丢图，需换成对象存储（S3 / OSS）并走 CDN；也没有做内容审核（违规图片）。
 - **没有地图视图**：地点以列表 + 距离展示。可以后续接入 `react-native-maps` / 高德 / Mapbox。
 - **没有内置搜索与播放**：歌曲靠手动输入歌名歌手，播放靠用户贴的外链（网易云 / QQ 音乐 / Spotify…）。接入音乐平台的搜索 API 后可自动补全并内嵌试听。
 - **原生端未在真机上验证**：开发环境里只验证了 TypeScript、`expo-doctor` 以及 web 版的完整流程；iOS / Android 真机的定位权限弹窗、深色状态栏等需要你实机过一遍。

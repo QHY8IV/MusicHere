@@ -2,9 +2,11 @@ import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { CommentItem } from '../../components/CommentItem';
+import { CoverButtons } from '../../components/CoverButtons';
+import { PlaceCover } from '../../components/PlaceCover';
 import { SongCard } from '../../components/SongCard';
 import { Button, Card, Chip, EmptyState, ErrorState, Field, Loading, Muted, Pill, Screen, SectionTitle } from '../../components/ui';
-import { api, ApiError, type CheckinResult, type Comment, type Kind, type PlaceSong } from '../../lib/api';
+import { api, ApiError, type CheckinResult, type Comment, type Kind, type PickedImage, type PlaceSong } from '../../lib/api';
 import { useAuth } from '../../lib/auth';
 import { useToast } from '../../lib/feedback';
 import { CATEGORY_LABEL, KIND_ICON, KIND_LABEL, MOODS, checkinAllowanceM, formatDistance } from '../../lib/format';
@@ -30,6 +32,7 @@ export default function PlaceScreen() {
   const [tab, setTab] = useState<Tab>('vibe');
   const [checkingIn, setCheckingIn] = useState(false);
   const [checkin, setCheckin] = useState<CheckinResult | null>(null);
+  const [coverBusy, setCoverBusy] = useState(false);
 
   const grouped = useMemo(() => {
     const g: Record<Kind, PlaceSong[]> = { vibe: [], frequent: [], live: [] };
@@ -64,6 +67,19 @@ export default function PlaceScreen() {
     }
   };
 
+  const setCover = async (img: PickedImage) => {
+    setCoverBusy(true);
+    try {
+      await api.uploadPlaceImage(p.id, img);
+      await place.reload(); // 重新取一次，保留带距离信息的详情
+      toast.show('封面已更新');
+    } catch (err) {
+      toast.show(err instanceof Error ? err.message : '上传失败', 'error');
+    } finally {
+      setCoverBusy(false);
+    }
+  };
+
   const patchSong = (next: PlaceSong) =>
     songs.setData((d) => d && { songs: d.songs.map((s) => (s.id === next.id ? next : s)) });
   const dropSong = (sid: string) => songs.setData((d) => d && { songs: d.songs.filter((s) => s.id !== sid) });
@@ -81,12 +97,19 @@ export default function PlaceScreen() {
     >
       <Stack.Screen options={{ title: p.name }} />
 
-      <Card>
-        <Text style={styles.name} testID="place-name-title">{p.name}</Text>
-        <View style={styles.pills}>
-          {p.category && <Pill label={CATEGORY_LABEL[p.category]} />}
-          {p.distanceM !== null && <Pill label={`距你 ${formatDistance(p.distanceM)}`} icon="walk" />}
-        </View>
+      <Card style={styles.headCard}>
+        <PlaceCover
+          place={p}
+          height={220}
+          topRight={p.canSetImage ? <CoverButtons compact onPicked={setCover} busy={coverBusy} /> : undefined}
+        >
+          <Text style={styles.name} testID="place-name-title">{p.name}</Text>
+          <View style={styles.pills}>
+            {p.category && <Pill label={CATEGORY_LABEL[p.category]} />}
+            {p.distanceM !== null && <Pill label={`距你 ${formatDistance(p.distanceM)}`} icon="walk" />}
+          </View>
+        </PlaceCover>
+        <View style={styles.headBody}>
         {p.description ? <Text style={styles.desc}>{p.description}</Text> : null}
         <Muted>
           {p.songCount} 首歌 · {p.visitorCount} 人来过 · {p.commentCount} 条评论
@@ -129,6 +152,7 @@ export default function PlaceScreen() {
             ) : null}
           </View>
         )}
+        </View>
       </Card>
 
       <View style={styles.tabs}>
@@ -311,7 +335,9 @@ function Comments({
 }
 
 const styles = StyleSheet.create({
-  name: { color: colors.text, fontSize: 24, fontWeight: '900' },
+  headCard: { padding: 0, gap: 0, overflow: 'hidden' },
+  headBody: { padding: 14, gap: 8 },
+  name: { color: '#fff', fontSize: 26, fontWeight: '900' },
   desc: { color: colors.text, fontSize: 14, lineHeight: 21 },
   pills: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   tabs: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },

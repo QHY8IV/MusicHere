@@ -1,9 +1,10 @@
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Image, StyleSheet, Text, View } from 'react-native';
+import { CoverButtons } from '../../components/CoverButtons';
 import { LocationGate } from '../../components/LocationGate';
 import { Button, Card, Chip, ErrorState, Field, Loading, Muted, Screen, SectionTitle, Title } from '../../components/ui';
-import { api, type Category, type EventType, type Kind, type NewPlaceSong, type Place } from '../../lib/api';
+import { api, type Category, type EventType, type Kind, type NewPlaceSong, type PickedImage, type Place } from '../../lib/api';
 import { useToast } from '../../lib/feedback';
 import {
   CATEGORY_LABEL,
@@ -44,6 +45,7 @@ function AddSong({ coords }: { coords: Coords }) {
   const [placeId, setPlaceId] = useState<string | null>(null);
   const [placeName, setPlaceName] = useState('');
   const [category, setCategory] = useState<Category | undefined>();
+  const [cover, setCover] = useState<PickedImage | null>(null);
   const [kind, setKind] = useState<Kind>('vibe');
   const [title, setTitle] = useState('');
   const [artist, setArtist] = useState('');
@@ -80,7 +82,16 @@ function AddSong({ coords }: { coords: Coords }) {
     try {
       let target: Place | undefined = places.find((p) => p.id === placeId);
       if (isNew) {
-        target = (await api.createPlace({ ...coords, name: placeName.trim(), category })).place;
+        const made = await api.createPlace({ ...coords, name: placeName.trim(), category });
+        target = made.place;
+        // 照片传失败不应拦住分享：歌已经比图片重要，失败只提示
+        if (cover && made.place.canSetImage) {
+          try {
+            await api.uploadPlaceImage(made.place.id, cover);
+          } catch (err) {
+            toast.show(err instanceof Error ? `地点已创建，但照片上传失败：${err.message}` : '照片上传失败', 'error');
+          }
+        }
       }
       if (!target) return setError('请选择一个地点');
 
@@ -102,6 +113,7 @@ function AddSong({ coords }: { coords: Coords }) {
       setPerformer('');
       setEventTitle('');
       setPlaceName('');
+      setCover(null);
       setPlaceId(null);
       nearby.reload();
       router.push(`/place/${target.id}`);
@@ -138,6 +150,9 @@ function AddSong({ coords }: { coords: Coords }) {
               <Chip key={c} label={CATEGORY_LABEL[c]} selected={category === c} onPress={() => setCategory(category === c ? undefined : c)} />
             ))}
           </View>
+          <Text style={styles.label}>这里的照片（可选，会作为地点背景）</Text>
+          {cover ? <Image source={{ uri: cover.uri }} style={styles.preview} resizeMode="cover" testID="cover-preview" /> : null}
+          <CoverButtons onPicked={setCover} />
           <Muted>将以你当前的位置创建，200 米内同名地点会自动合并。</Muted>
         </Card>
       )}
@@ -194,4 +209,5 @@ const styles = StyleSheet.create({
   wrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   label: { color: colors.sub, fontSize: 13, fontWeight: '600' },
   error: { color: colors.red, fontSize: 14 },
+  preview: { width: '100%', height: 150, borderRadius: 12 },
 });

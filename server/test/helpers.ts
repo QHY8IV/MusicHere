@@ -1,3 +1,6 @@
+import { mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import type { FastifyInstance } from 'fastify';
 import { buildApp } from '../src/app.ts';
 import { openDb } from '../src/db.ts';
@@ -41,6 +44,7 @@ export interface TestEnv {
   app: FastifyInstance;
   clock: Clock;
   adminKey: string;
+  uploadDir: string;
   close: () => Promise<void>;
   /** 带登录态的请求封装 */
   client: (token?: string) => Client;
@@ -64,12 +68,14 @@ export interface Res {
 export async function setup(opts: { seed?: number; adminKey?: string | null } = {}): Promise<TestEnv> {
   const db = openDb(':memory:');
   const clock = new Clock();
+  const uploadDir = mkdtempSync(join(tmpdir(), 'musichere-up-'));
   const adminKey = opts.adminKey === undefined ? 'test-admin-key' : opts.adminKey;
   const app = await buildApp({
     db,
     now: clock.now,
     rng: seededRng(opts.seed ?? 1),
     adminKey,
+    uploadDir,
   });
 
   const client = (token?: string): Client => {
@@ -103,11 +109,13 @@ export async function setup(opts: { seed?: number; adminKey?: string | null } = 
     app,
     clock,
     adminKey: adminKey ?? '',
+    uploadDir,
     client,
     newUser,
     close: async () => {
       await app.close();
       db.close();
+      rmSync(uploadDir, { recursive: true, force: true });
     },
   };
 }
@@ -121,4 +129,24 @@ export async function createPlace(
   const res = await c.post('/places', { name, ...at, ...extra });
   if (res.status !== 201 && res.status !== 200) throw new Error(JSON.stringify(res.body));
   return res.body.place as { id: string; [k: string]: unknown };
+}
+
+/** 最小的合法图片字节：PNG 文件头 + 填充。只用于测试文件头判断，不要求能解码。 */
+export const PNG = Buffer.concat([
+  Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+  Buffer.alloc(64, 1),
+]);
+export const JPEG = Buffer.concat([Buffer.from([0xff, 0xd8, 0xff, 0xe0]), Buffer.alloc(64, 2)]);
+
+/** 手工拼一个 multipart/form-data 请求体。 */
+export function multipartFile(field: string, filename: string, mime: string, data: Buffer) {
+  const boundary = '----musichere' + Math.random().toString(16).slice(2);
+  const head = Buffer.from(
+    `--${boundary}\r\nContent-Disposition: form-data; name="${field}"; filename="${filename}"\r\nContent-Type: ${mime}\r\n\r\n`,
+  );
+  const tail = Buffer.from(`\r\n--${boundary}--\r\n`);
+  return {
+    payload: Buffer.concat([head, data, tail]),
+    headers: { 'content-type': `multipart/form-data; boundary=${boundary}` },
+  };
 }

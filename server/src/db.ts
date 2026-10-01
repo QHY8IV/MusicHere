@@ -18,6 +18,7 @@ CREATE TABLE IF NOT EXISTS places (
   lat         REAL NOT NULL,
   lng         REAL NOT NULL,
   radius_m    INTEGER NOT NULL DEFAULT 150,
+  image_url   TEXT,
   created_by  TEXT REFERENCES users(id),
   created_at  TEXT NOT NULL
 );
@@ -105,11 +106,20 @@ CREATE TABLE IF NOT EXISTS comment_likes (
 );
 `;
 
+/** 给已存在的旧数据库补列（CREATE TABLE IF NOT EXISTS 不会改旧表）。 */
+function migrate(db: Db) {
+  const cols = db.prepare('PRAGMA table_info(places)').all() as { name: string }[];
+  if (!cols.some((c) => c.name === 'image_url')) {
+    db.exec('ALTER TABLE places ADD COLUMN image_url TEXT');
+  }
+}
+
 export function openDb(path: string): Db {
   const db = new DatabaseSync(path);
   db.exec('PRAGMA journal_mode = WAL');
   db.exec('PRAGMA foreign_keys = ON');
   db.exec(SCHEMA);
+  migrate(db);
   return db;
 }
 

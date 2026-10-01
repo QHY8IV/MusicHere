@@ -49,6 +49,13 @@
         {
           "locationWhenInUsePermission": "MusicHere 需要你的位置，来显示附近地点的歌曲，并在你打卡时确认你在现场。"
         }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "MusicHere 需要访问相册，来为地点选择背景照片。",
+          "cameraPermission": "MusicHere 需要使用相机，来为地点拍摄背景照片。"
+        }
       ]
     ],
     "experiments": {

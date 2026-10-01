@@ -16,15 +16,6 @@ const optionalText = (max: number) =>
 
 export const nickname = text(20);
 
-export const placeInput = z.object({
-  name: text(60),
-  lat,
-  lng,
-  description: optionalText(300),
-  category: z.enum(CATEGORIES).optional(),
-  radiusM: z.number().int().min(30).max(1000).optional(),
-});
-
 /** 只允许 http(s) 链接，避免存入 javascript: 之类的 URL 后被客户端直接打开。 */
 const httpUrl = z
   .string()
@@ -38,6 +29,16 @@ const httpUrl = z
       return false;
     }
   }, '必须是 http(s) 链接');
+
+export const placeInput = z.object({
+  name: text(60),
+  lat,
+  lng,
+  description: optionalText(300),
+  category: z.enum(CATEGORIES).optional(),
+  radiusM: z.number().int().min(30).max(1000).optional(),
+  imageUrl: httpUrl.optional(),
+});
 
 export const placeSongInput = z.object({
   title: text(120),
