@@ -58,7 +58,9 @@ export function Screen({
   contentStyle,
   topInset = true,
   bottomPad = 140,
+  testID,
 }: {
+  testID?: string;
   children: ReactNode;
   onRefresh?: () => void;
   refreshing?: boolean;
@@ -69,7 +71,7 @@ export function Screen({
 }) {
   const insets = useSafeAreaInsets();
   return (
-    <View style={styles.screen}>
+    <View style={styles.screen} testID={testID}>
       <LinearGradient
         colors={[`${glow}26`, `${glow}08`, 'transparent']}
         locations={[0, 0.45, 1]}
@@ -159,6 +161,8 @@ export function Button({
       testID={testID}
       accessibilityRole="button"
       accessibilityState={{ disabled: off }}
+      aria-disabled={off}
+      disabled={off}
       accessibilityLabel={label}
       onPress={off ? undefined : onPress}
       style={({ pressed }) => [

@@ -90,7 +90,7 @@ function Now({ coords }: { coords: Coords }) {
   };
 
   return (
-    <Screen
+    <Screen testID="screen-now"
       onRefresh={async () => {
         await refresh();
         await disc.reload();

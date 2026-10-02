@@ -151,7 +151,7 @@ function AddSong({ coords }: { coords: Coords }) {
   };
 
   return (
-    <Screen glow={colors.mint}>
+    <Screen testID="screen-add" glow={colors.mint}>
       <View style={{ gap: 6 }}>
         <Txt v="display">分享一首歌</Txt>
         <Txt v="sub">路过一个很有氛围的地方？把此刻最配的那首歌留在这里。</Txt>

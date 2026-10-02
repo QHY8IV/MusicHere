@@ -60,7 +60,7 @@ export default function MeTab() {
   const drop = (id: string) => songs.setData((d) => d && { songs: d.songs.filter((s) => s.id !== id) });
 
   return (
-    <Screen onRefresh={reloadAll} refreshing={me.loading} glow={colors.sky}>
+    <Screen testID="screen-me" onRefresh={reloadAll} refreshing={me.loading} glow={colors.sky}>
       <View style={styles.profile}>
         <Avatar name={user!.nickname} size={72} />
         {name === null ? (

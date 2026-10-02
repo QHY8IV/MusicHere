@@ -41,7 +41,7 @@ function Places({ coords }: { coords: Coords }) {
   const places = list.data.places.filter((p) => (p.distanceM ?? 0) <= r);
 
   return (
-    <Screen
+    <Screen testID="screen-places"
       glow={colors.mint}
       refreshing={list.loading}
       onRefresh={async () => {

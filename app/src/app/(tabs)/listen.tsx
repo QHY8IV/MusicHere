@@ -97,7 +97,7 @@ function Listen({ coords }: { coords: Coords }) {
     );
 
   return (
-    <Screen glow={colors.violet}>
+    <Screen testID="screen-listen" glow={colors.violet}>
       <View style={{ gap: 6 }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
           <Txt v="display">听这里</Txt>
