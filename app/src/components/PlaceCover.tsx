@@ -56,8 +56,8 @@ export function PlaceCover({
         <LinearGradient colors={[c1, c2]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
       )}
       <LinearGradient
-        colors={['rgba(14,15,31,0.05)', 'rgba(14,15,31,0.35)', 'rgba(14,15,31,0.92)']}
-        locations={[0, 0.45, 1]}
+        colors={['rgba(7,8,12,0.10)', 'rgba(7,8,12,0.30)', 'rgba(7,8,12,0.94)']}
+        locations={[0, 0.4, 1]}
         style={StyleSheet.absoluteFill}
         pointerEvents="none"
       />
@@ -68,7 +68,7 @@ export function PlaceCover({
 }
 
 const styles = StyleSheet.create({
-  box: { width: '100%', overflow: 'hidden', justifyContent: 'flex-end', backgroundColor: '#1A1B33' },
-  content: { padding: 14, gap: 6 },
-  topRight: { position: 'absolute', top: 10, right: 10 },
+  box: { width: '100%', overflow: 'hidden', justifyContent: 'flex-end', backgroundColor: '#12151D' },
+  content: { padding: 16, gap: 6 },
+  topRight: { position: 'absolute', top: 12, right: 12 },
 });

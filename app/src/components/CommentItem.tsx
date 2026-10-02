@@ -1,11 +1,22 @@
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { api, type Comment } from '../lib/api';
 import { confirmAction, useToast } from '../lib/feedback';
 import { timeAgo } from '../lib/format';
-import { colors } from '../lib/theme';
-import { Card, Pill } from './ui';
+import { artPalette, colors, moodColor, radius } from '../lib/theme';
+import { MoodChip } from './ui';
+
+export function Avatar({ name, size = 34 }: { name: string; size?: number }) {
+  const [a, b] = artPalette(name);
+  return (
+    <View style={{ width: size, height: size, borderRadius: size / 2, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' }}>
+      <LinearGradient colors={[a, b]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
+      <Text style={{ color: '#fff', fontWeight: '900', fontSize: size * 0.42 }}>{[...name][0] ?? '?'}</Text>
+    </View>
+  );
+}
 
 export function CommentItem({
   comment,
@@ -43,43 +54,61 @@ export function CommentItem({
     }
   };
 
+  const accent = comment.mood ? moodColor[comment.mood] : undefined;
   return (
-    <Card>
+    <View style={[styles.card, accent ? { borderLeftColor: accent } : null]}>
       <View style={styles.head}>
-        <Text style={styles.author}>{comment.author.nickname}</Text>
-        {comment.mood ? <Pill label={comment.mood} tone="accent" /> : null}
-        <Text style={styles.time}>{timeAgo(comment.createdAt)}</Text>
+        <Avatar name={comment.author.nickname} />
+        <View style={{ flex: 1 }}>
+          <Text style={styles.author}>{comment.author.nickname}</Text>
+          <Text style={styles.time}>{timeAgo(comment.createdAt)}</Text>
+        </View>
+        {comment.mood ? <MoodChip mood={comment.mood} size="sm" /> : null}
       </View>
-      <Text style={styles.body} testID="comment-body">{comment.body}</Text>
+      <Text style={styles.body} testID="comment-body">
+        {comment.body}
+      </Text>
       {comment.song ? (
-        <Text style={styles.song}>♪ 《{comment.song.title}》 · {comment.song.artist}</Text>
+        <View style={styles.song}>
+          <Ionicons name="musical-note" size={12} color={colors.mint} />
+          <Text style={styles.songText}>
+            《{comment.song.title}》 · {comment.song.artist}
+          </Text>
+        </View>
       ) : null}
       <View style={styles.foot}>
         <Pressable onPress={like} style={styles.like} accessibilityRole="button" testID="comment-like">
-          <Ionicons
-            name={comment.likedByMe ? 'heart' : 'heart-outline'}
-            size={18}
-            color={comment.likedByMe ? colors.red : colors.sub}
-          />
-          <Text style={[styles.likeText, comment.likedByMe && { color: colors.red }]}>{comment.likes}</Text>
+          <Ionicons name={comment.likedByMe ? 'heart' : 'heart-outline'} size={16} color={comment.likedByMe ? colors.pink : colors.sub} />
+          <Text style={[styles.likeText, comment.likedByMe && { color: colors.pink }]}>{comment.likes}</Text>
         </Pressable>
         {comment.author.id === userId ? (
           <Pressable onPress={remove} hitSlop={8} accessibilityLabel="删除评论">
-            <Ionicons name="trash-outline" size={17} color={colors.faint} />
+            <Ionicons name="trash-outline" size={16} color={colors.faint} />
           </Pressable>
         ) : null}
       </View>
-    </Card>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  head: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  author: { color: colors.text, fontWeight: '700', fontSize: 14 },
-  time: { color: colors.faint, fontSize: 12, marginLeft: 'auto' },
-  body: { color: colors.text, fontSize: 15, lineHeight: 22 },
-  song: { color: colors.violet, fontSize: 13, fontWeight: '600' },
+  card: {
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.line,
+    borderLeftWidth: 3,
+    borderLeftColor: colors.lineStrong,
+    padding: 14,
+    gap: 10,
+  },
+  head: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  author: { color: colors.text, fontWeight: '800', fontSize: 14 },
+  time: { color: colors.faint, fontSize: 11, marginTop: 1 },
+  body: { color: colors.text, fontSize: 15, lineHeight: 23 },
+  song: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  songText: { color: colors.mint, fontSize: 12, fontWeight: '700' },
   foot: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  like: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  likeText: { color: colors.sub, fontSize: 13, fontWeight: '600' },
+  like: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  likeText: { color: colors.sub, fontSize: 12, fontWeight: '700' },
 });

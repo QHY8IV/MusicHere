@@ -1,6 +1,7 @@
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { ActivityIndicator, View } from 'react-native';
+import { View } from 'react-native';
+import { Loading } from '../components/ui';
 import { Welcome } from '../components/Welcome';
 import { AuthProvider, useAuth } from '../lib/auth';
 import { ToastProvider } from '../lib/feedback';
@@ -12,23 +13,16 @@ function Gate() {
   if (loading) {
     return (
       <View style={{ flex: 1, backgroundColor: colors.bg, justifyContent: 'center' }}>
-        <ActivityIndicator color={colors.accent} />
+        <Loading />
       </View>
     );
   }
   if (!user) return <Welcome />;
   return (
     <LocationProvider>
-      <Stack
-        screenOptions={{
-          headerStyle: { backgroundColor: colors.bg },
-          headerTintColor: colors.text,
-          headerShadowVisible: false,
-          contentStyle: { backgroundColor: colors.bg },
-        }}
-      >
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="place/[id]" options={{ title: '地点' }} />
+      <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.bg } }}>
+        <Stack.Screen name="(tabs)" />
+        <Stack.Screen name="place/[id]" />
       </Stack>
     </LocationProvider>
   );
@@ -36,11 +30,13 @@ function Gate() {
 
 export default function RootLayout() {
   return (
-    <AuthProvider>
-      <ToastProvider>
-        <StatusBar style="light" />
-        <Gate />
-      </ToastProvider>
-    </AuthProvider>
+    <View style={{ flex: 1, backgroundColor: colors.bg }}>
+      <AuthProvider>
+        <ToastProvider>
+          <StatusBar style="light" />
+          <Gate />
+        </ToastProvider>
+      </AuthProvider>
+    </View>
   );
 }

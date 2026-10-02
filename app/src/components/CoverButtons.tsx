@@ -48,8 +48,8 @@ export function CoverButtons({
   }
   return (
     <View style={styles.row}>
-      {canCamera && <Button label="拍照" icon="camera" variant="ghost" small loading={loading} onPress={() => run(takePhoto)} />}
-      <Button label="从相册选" icon="images" variant="ghost" small loading={loading} onPress={() => run(pickFromLibrary)} testID="cover-library" />
+      {canCamera && <Button label="拍照" icon="camera" variant="ghost" size="sm" loading={loading} onPress={() => run(takePhoto)} />}
+      <Button label="从相册选" icon="images" variant="ghost" size="sm" loading={loading} onPress={() => run(pickFromLibrary)} testID="cover-library" />
     </View>
   );
 }

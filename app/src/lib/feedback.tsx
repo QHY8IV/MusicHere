@@ -62,16 +62,16 @@ export function confirmAction(title: string, message: string, confirmText = '确
 }
 
 const styles = StyleSheet.create({
-  wrap: { position: 'absolute', left: 16, right: 16, bottom: 96, alignItems: 'center' },
+  wrap: { position: 'absolute', left: 16, right: 16, top: 56, alignItems: 'center' },
   toast: {
-    backgroundColor: colors.cardHi,
-    borderColor: colors.green,
+    backgroundColor: colors.surface3,
+    borderColor: `${colors.lime}88`,
     borderWidth: 1,
     borderRadius: radius.pill,
     paddingHorizontal: 18,
-    paddingVertical: 10,
+    paddingVertical: 11,
     maxWidth: 480,
   },
-  error: { borderColor: colors.red },
-  text: { color: colors.text, fontSize: 14, textAlign: 'center' },
+  error: { borderColor: `${colors.red}AA` },
+  text: { color: colors.text, fontSize: 14, fontWeight: '700', textAlign: 'center' },
 });

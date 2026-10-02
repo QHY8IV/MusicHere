@@ -88,12 +88,76 @@ export interface Comment {
 export interface Recommendation {
   placeSong: PlaceSong;
   place: { id: string; name: string; distanceM: number };
+  moods: string[];
+  reason: string;
 }
 
 export interface DiscoverResult {
   currentPlace: Place | null;
   nearbyPlaces: Place[];
   recommendations: Recommendation[];
+  waitingBottles: number;
+}
+
+export interface Engine {
+  kind: 'llm' | 'rules';
+  label: string;
+}
+
+export interface Scene {
+  summary: string;
+  moods: string[];
+  tags: string[];
+  energy: number;
+  valence: number;
+  timeLabel: string;
+}
+
+export type ScenePick =
+  | {
+      source: 'crowd';
+      placeSong: PlaceSong;
+      place: { id: string; name: string; distanceM: number };
+      matched: string[];
+      reason: string;
+    }
+  | { source: 'ai'; song: { title: string; artist: string }; matched: string[]; reason: string };
+
+export interface SceneResult {
+  engine: Engine;
+  scene: Scene;
+  place: Place | null;
+  picks: ScenePick[];
+  coldStart: boolean;
+}
+
+export interface Persona {
+  engine: Engine;
+  summary: string;
+  keywords: string[];
+  moods: { mood: string; share: number }[];
+  hours: number[];
+  peak: { startHour: number; label: string } | null;
+  topArtists: string[];
+  counts: { songs: number; live: number; visitors: number; comments: number };
+  generatedAt: string;
+}
+
+export interface Bottle {
+  id: string;
+  placeId: string;
+  placeName: string;
+  song: { title: string; artist: string; url: string | null };
+  message: string;
+  from: { id: string; nickname: string };
+  createdAt: string;
+  picked: { by: { id: string; nickname: string }; at: string } | null;
+}
+
+export interface ColorHint {
+  brightness: number;
+  warmth: number;
+  saturation: number;
 }
 
 export interface Checkin {
@@ -111,6 +175,8 @@ export interface CheckinResult {
   place: Place;
   visitorCount: number;
   songs: Record<Kind, PlaceSong[]>;
+  bottle: Bottle | null;
+  waitingBottles: number;
 }
 
 export interface NewPlaceSong {
@@ -242,8 +308,8 @@ export const api = {
     request<{ checkins: (Checkin & { placeName: string })[] }>('GET', '/me/checkins'),
   mySongs: () => request<{ songs: (PlaceSong & { placeName: string })[] }>('GET', '/me/songs'),
 
-  discover: (p: Pos, limit = 5) =>
-    request<DiscoverResult>('GET', `/discover${qs({ lat: p.lat, lng: p.lng, limit })}`),
+  discover: (p: Pos, limit = 6) =>
+    request<DiscoverResult>('GET', `/discover${qs({ lat: p.lat, lng: p.lng, limit, hour: new Date().getHours() })}`),
   nearby: (p: Pos, radius = 1000) =>
     request<{ places: Place[] }>('GET', `/places/nearby${qs({ lat: p.lat, lng: p.lng, radius })}`),
   place: (id: string, p?: Pos) =>
@@ -272,4 +338,25 @@ export const api = {
   likeComment: (id: string, liked: boolean) =>
     request<{ comment: Comment }>(liked ? 'PUT' : 'DELETE', `/comments/${id}/like`),
   deleteComment: (id: string) => request<void>('DELETE', `/comments/${id}`),
+
+  aiStatus: () => request<{ engine: Engine }>('GET', '/ai/status'),
+  scene: (input: Pos & { text?: string; image?: string; colorHint?: ColorHint }) =>
+    request<SceneResult>('POST', '/ai/scene', { ...input, hour: new Date().getHours() }),
+  caption: (input: { placeId?: string; title: string; artist: string }) =>
+    request<{ text: string; engine: Engine }>('POST', '/ai/caption', { ...input, hour: new Date().getHours() }),
+  persona: (placeId: string) => request<{ persona: Persona }>('GET', `/places/${placeId}/persona`),
+
+  throwBottle: (placeId: string, input: Pos & { title: string; artist: string; message: string }) =>
+    request<{ bottle: Bottle }>('POST', `/places/${placeId}/bottles`, input),
+  waitingBottles: (placeId: string) => request<{ count: number }>('GET', `/places/${placeId}/bottles/waiting`),
+  myBottles: () => request<{ thrown: Bottle[]; picked: Bottle[] }>('GET', '/me/bottles'),
 };
+
+/**
+ * 去 QQ 音乐听：有用户贴的链接就用它，否则跳 QQ 音乐搜索页（装了 App 的手机会由系统接管）。
+ * 正式接入时可替换为 QQ 音乐开放平台的歌曲 ID 直达与 App Scheme。
+ */
+export function qqMusicUrl(song: { title: string; artist: string; url?: string | null }): string {
+  if (song.url) return song.url;
+  return `https://y.qq.com/n/ryqq/search?w=${encodeURIComponent(`${song.title} ${song.artist}`)}`;
+}
