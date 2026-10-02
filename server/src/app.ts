@@ -24,6 +24,8 @@ export async function buildApp(options: AppOptions): Promise<FastifyInstance> {
     rng: options.rng ?? Math.random,
     adminKey: options.adminKey ?? null,
     uploadDir: options.uploadDir ?? 'uploads',
+    llm: options.llm ?? null,
+    tz: options.tz ?? 'Asia/Shanghai',
   };
 
   const app = Fastify({ logger: options.logger ?? false, bodyLimit: 64 * 1024 });

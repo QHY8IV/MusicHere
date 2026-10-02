@@ -1,5 +1,6 @@
 import type { FastifyRequest } from 'fastify';
 import { z } from 'zod';
+import type { Llm } from './ai/llm.ts';
 import type { Db } from './db.ts';
 
 export interface User {
@@ -16,6 +17,10 @@ export interface Deps {
   adminKey: string | null;
   /** 用户上传的地点图片存放目录 */
   uploadDir: string;
+  /** 大模型；为 null 时 AI 能力使用本地规则引擎 */
+  llm: Llm | null;
+  /** 统计「几点」时使用的时区（IANA 名称） */
+  tz: string;
 }
 
 export class HttpError extends Error {

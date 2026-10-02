@@ -481,7 +481,7 @@ describe('发现：按定位随机推荐', () => {
     const me = env.client((await env.newUser()).token);
     const res = await me.get(`/discover?lat=10&lng=10`);
     assert.equal(res.status, 200);
-    assert.deepEqual(res.body, { currentPlace: null, nearbyPlaces: [], recommendations: [] });
+    assert.deepEqual(res.body, { currentPlace: null, nearbyPlaces: [], recommendations: [], waitingBottles: 0 });
   });
 });
 

@@ -98,6 +98,31 @@ CREATE TABLE IF NOT EXISTS comments (
 );
 CREATE INDEX IF NOT EXISTS idx_comments_place ON comments(place_id, created_at);
 
+-- 歌曲情绪标签（按歌存，跨地点共用）。source: ai / catalog / rule
+CREATE TABLE IF NOT EXISTS song_moods (
+  song_id     TEXT NOT NULL REFERENCES songs(id) ON DELETE CASCADE,
+  mood        TEXT NOT NULL,
+  source      TEXT NOT NULL CHECK (source IN ('ai', 'catalog', 'rule')),
+  created_at  TEXT NOT NULL,
+  PRIMARY KEY (song_id, mood, source)
+);
+
+-- 声音漂流瓶：留给下一个到访者的歌和话
+CREATE TABLE IF NOT EXISTS bottles (
+  id          TEXT PRIMARY KEY,
+  place_id    TEXT NOT NULL REFERENCES places(id) ON DELETE CASCADE,
+  user_id     TEXT NOT NULL REFERENCES users(id),
+  title       TEXT NOT NULL,
+  artist      TEXT NOT NULL,
+  url         TEXT,
+  message     TEXT NOT NULL,
+  created_at  TEXT NOT NULL,
+  picked_by   TEXT REFERENCES users(id),
+  picked_at   TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_bottles_place ON bottles(place_id, picked_by, created_at);
+CREATE INDEX IF NOT EXISTS idx_bottles_user ON bottles(user_id);
+
 CREATE TABLE IF NOT EXISTS comment_likes (
   comment_id  TEXT NOT NULL REFERENCES comments(id) ON DELETE CASCADE,
   user_id     TEXT NOT NULL REFERENCES users(id),

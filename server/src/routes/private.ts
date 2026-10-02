@@ -25,11 +25,19 @@ import {
   listComments,
   setCommentLike,
 } from '../services/comments.ts';
+import { suggestCaption } from '../ai/caption.ts';
+import { assertClean } from '../ai/moderation.ts';
+import { placePersona } from '../ai/persona.ts';
+import { analyzeScene } from '../ai/scene.ts';
+import { myBottles, pickBottle, throwBottle, waitingBottles } from '../services/bottles.ts';
 import { discover } from '../services/discover.ts';
-import { removeUploaded, saveImage } from '../services/images.ts';
+import { removeUploaded, saveImage, sniffImage } from '../services/images.ts';
 import { KINDS } from '../services/placeSongs.ts';
 import {
+  bottleInput,
+  captionInput,
   commentInput,
+  hour,
   idParam,
   lat,
   lng,
@@ -37,6 +45,7 @@ import {
   placeInput,
   placeSongInput,
   positive,
+  sceneInput,
 } from './schemas.ts';
 
 export function privateRoutes(deps: Deps) {
@@ -83,10 +92,11 @@ export function privateRoutes(deps: Deps) {
           lng,
           radius: positive(300, 2000),
           limit: positive(5, 20),
+          hour: hour.optional(),
         }),
         req.query,
       );
-      return discover(deps, user.id, q.lat, q.lng, { radiusM: q.radius, limit: q.limit });
+      return discover(deps, user.id, q.lat, q.lng, { radiusM: q.radius, limit: q.limit, hour: q.hour });
     });
 
     // ---- 地点 ----
@@ -103,6 +113,7 @@ export function privateRoutes(deps: Deps) {
       const user = requireUser(req);
       // 外链封面只允许官方导入指定；普通用户通过上传接口设置封面
       const body = parse(placeInput.omit({ imageUrl: true }), req.body);
+      await assertClean(deps, body.name, body.description);
       const result = createPlace(deps, user.id, body);
       reply.code(result.created ? 201 : 200);
       return result;
@@ -146,6 +157,8 @@ export function privateRoutes(deps: Deps) {
       );
       const result = checkIn(deps, user.id, id, body.lat, body.lng, body.note || undefined);
       reply.code(result.repeat ? 200 : 201);
+      // 到了现场才捡得到：只有新的打卡（不是 6 小时内的重复打卡）才会捡起漂流瓶
+      const bottle = result.repeat ? null : pickBottle(deps, user.id, id);
       const songs = Object.fromEntries(
         KINDS.map((kind) => [kind, listPlaceSongs(deps, { placeId: id, kind, userId: user.id, limit: 10 })]),
       );
@@ -154,6 +167,8 @@ export function privateRoutes(deps: Deps) {
         place: getPlace(deps, id, { userId: user.id, lat: body.lat, lng: body.lng }),
         visitorCount: visitorCount(deps, id),
         songs,
+        bottle,
+        waitingBottles: waitingBottles(deps, id, user.id),
       };
     });
 
@@ -170,6 +185,7 @@ export function privateRoutes(deps: Deps) {
       const user = requireUser(req);
       const { id } = parse(idParam, req.params);
       const body = parse(placeSongInput, req.body);
+      await assertClean(deps, body.note, body.eventTitle);
       const result = addPlaceSong(deps, user.id, id, body);
       reply.code(result.created ? 201 : 200);
       return result;
@@ -198,6 +214,68 @@ export function privateRoutes(deps: Deps) {
       reply.code(204);
     });
 
+    // ---- AI ----
+    app.get('/ai/status', async () => ({
+      engine: deps.llm ? { kind: 'llm', label: deps.llm.label } : { kind: 'rules', label: '本地规则引擎' },
+    }));
+
+    // 拍一下 / 说一句，听这里。图片以 base64 放在 JSON 里，因此这个接口单独放宽请求体上限
+    app.post('/ai/scene', { bodyLimit: 5 * 1024 * 1024 }, async (req) => {
+      const user = requireUser(req);
+      const body = parse(sceneInput, req.body);
+      let imageMime: string | undefined;
+      if (body.image) {
+        const buf = Buffer.from(body.image, 'base64');
+        const type = sniffImage(buf);
+        if (!type) throw new HttpError(400, 'invalid_image', '只支持 JPG / PNG / WebP 图片');
+        if (buf.length > 3 * 1024 * 1024) throw new HttpError(413, 'too_large', '图片太大了');
+        imageMime = type.mime;
+      }
+      return analyzeScene(deps, user.id, {
+        text: body.text,
+        imageBase64: body.image,
+        imageMime,
+        colorHint: body.colorHint,
+        lat: body.lat,
+        lng: body.lng,
+        hour: body.hour,
+      });
+    });
+
+    app.post('/ai/caption', async (req) => {
+      requireUser(req);
+      const body = parse(captionInput, req.body);
+      return suggestCaption(deps, body);
+    });
+
+    app.get('/places/:id/persona', async (req) => {
+      requireUser(req);
+      const { id } = parse(idParam, req.params);
+      return { persona: await placePersona(deps, id) };
+    });
+
+    // ---- 声音漂流瓶 ----
+    app.post('/places/:id/bottles', async (req, reply) => {
+      const user = requireUser(req);
+      const { id } = parse(idParam, req.params);
+      const body = parse(bottleInput, req.body);
+      await assertClean(deps, body.message);
+      reply.code(201);
+      return { bottle: throwBottle(deps, user.id, id, body) };
+    });
+
+    app.get('/places/:id/bottles/waiting', async (req) => {
+      const user = requireUser(req);
+      const { id } = parse(idParam, req.params);
+      getPlace(deps, id, { userId: user.id }); // 404 if missing
+      return { count: waitingBottles(deps, id, user.id) };
+    });
+
+    app.get('/me/bottles', async (req) => {
+      const user = requireUser(req);
+      return myBottles(deps, user.id);
+    });
+
     // ---- 评论 ----
     app.get('/places/:id/comments', async (req) => {
       const user = requireUser(req);
@@ -215,6 +293,7 @@ export function privateRoutes(deps: Deps) {
       const user = requireUser(req);
       const { id } = parse(idParam, req.params);
       const body = parse(commentInput, req.body);
+      await assertClean(deps, body.body);
       reply.code(201);
       return { comment: addComment(deps, user.id, id, body) };
     });

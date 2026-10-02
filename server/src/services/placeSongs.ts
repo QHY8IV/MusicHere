@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { transaction } from '../db.ts';
 import { HttpError, isoDay, notFound, row, rows, type Deps } from '../http.ts';
+import { tagInBackground, tagSongSync } from '../ai/tags.ts';
 import { songWeight, type Kind, type Source } from '../ranking.ts';
 
 export const KINDS = ['vibe', 'frequent', 'live'] as const;
@@ -282,9 +283,12 @@ export function addPlaceSong(
       castVote(deps, userId, psId, 1);
       if (input.kind === 'frequent') recordListen(deps, userId, psId);
     }
-    return { psId, created };
+    tagSongSync(deps, songId, input.title, input.artist, input.note);
+    return { psId, created, songId };
   });
 
+  // 有大模型时在后台补一次更准确的情绪标签，不阻塞响应
+  tagInBackground(deps, id.songId, input.title, input.artist, input.note);
   return { placeSong: getPlaceSong(deps, id.psId, userId), created: id.created };
 }
 

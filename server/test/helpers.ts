@@ -1,7 +1,10 @@
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { createServer } from 'node:http';
+import type { AddressInfo } from 'node:net';
 import type { FastifyInstance } from 'fastify';
+import { createLlm, type Llm } from '../src/ai/llm.ts';
 import { buildApp } from '../src/app.ts';
 import { openDb } from '../src/db.ts';
 
@@ -65,7 +68,9 @@ export interface Res {
   body: any;
 }
 
-export async function setup(opts: { seed?: number; adminKey?: string | null } = {}): Promise<TestEnv> {
+export async function setup(
+  opts: { seed?: number; adminKey?: string | null; llm?: Llm | null; tz?: string } = {},
+): Promise<TestEnv> {
   const db = openDb(':memory:');
   const clock = new Clock();
   const uploadDir = mkdtempSync(join(tmpdir(), 'musichere-up-'));
@@ -76,6 +81,8 @@ export async function setup(opts: { seed?: number; adminKey?: string | null } = 
     rng: seededRng(opts.seed ?? 1),
     adminKey,
     uploadDir,
+    llm: opts.llm ?? null,
+    tz: opts.tz ?? 'Asia/Shanghai',
   });
 
   const client = (token?: string): Client => {
@@ -148,5 +155,57 @@ export function multipartFile(field: string, filename: string, mime: string, dat
   return {
     payload: Buffer.concat([head, data, tail]),
     headers: { 'content-type': `multipart/form-data; boundary=${boundary}` },
+  };
+}
+
+export interface FakeLlm {
+  llm: Llm;
+  /** 收到的请求体（已解析） */
+  requests: { body: any; auth: string | undefined }[];
+  /** 设置下一次（及之后）的回复：字符串作为 message.content；函数可按请求动态返回；'hang' 表示不回应 */
+  reply: (r: string | ((body: any) => string) | { status: number } | 'hang') => void;
+  close: () => Promise<void>;
+}
+
+/** 一个本地的 OpenAI 兼容假服务，用来测试大模型路径（成功、格式错误、超时、HTTP 错误）。 */
+export async function startFakeLlm(timeoutMs = 1500): Promise<FakeLlm> {
+  const requests: FakeLlm['requests'] = [];
+  let next: Parameters<FakeLlm['reply']>[0] = '{}';
+  const server = createServer((req, res) => {
+    let raw = '';
+    req.on('data', (c) => (raw += c));
+    req.on('end', () => {
+      const body = JSON.parse(raw || '{}');
+      requests.push({ body, auth: req.headers.authorization });
+      if (next === 'hang') return; // 永不回应，触发超时
+      if (typeof next === 'object') {
+        res.writeHead(next.status).end('{}');
+        return;
+      }
+      const content = typeof next === 'function' ? next(body) : next;
+      res.writeHead(200, { 'content-type': 'application/json' });
+      res.end(JSON.stringify({ choices: [{ message: { role: 'assistant', content } }] }));
+    });
+  });
+  await new Promise<void>((r) => server.listen(0, '127.0.0.1', r));
+  const port = (server.address() as AddressInfo).port;
+  return {
+    llm: createLlm({
+      baseUrl: `http://127.0.0.1:${port}/v1`,
+      apiKey: 'test-key',
+      model: 'text-model',
+      visionModel: 'vision-model',
+      label: '测试模型',
+      timeoutMs,
+    }),
+    requests,
+    reply: (r) => {
+      next = r;
+    },
+    close: () =>
+      new Promise<void>((r) => {
+        server.closeAllConnections();
+        server.close(() => r());
+      }),
   };
 }

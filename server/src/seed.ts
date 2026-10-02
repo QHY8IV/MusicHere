@@ -28,7 +28,7 @@ const at = (northM: number, eastM: number) => ({
 });
 
 const db = openDb(process.env.DB_PATH ?? 'musichere.db');
-const deps: Deps = { db, now: () => new Date(), rng: Math.random, adminKey: null, uploadDir: process.env.UPLOAD_DIR ?? 'uploads' };
+const deps: Deps = { db, now: () => new Date(), rng: Math.random, adminKey: null, uploadDir: process.env.UPLOAD_DIR ?? 'uploads', llm: null, tz: process.env.APP_TZ || 'Asia/Shanghai' };
 
 interface Spot {
   name: string;
