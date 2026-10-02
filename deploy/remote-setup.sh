@@ -55,6 +55,22 @@ else
 fi
 chown -R musichere:musichere "$DATA_DIR"
 
+echo "==> AI 配置"
+if [ ! -f /etc/musichere.env ]; then
+  install -m 600 /dev/null /etc/musichere.env
+  cat > /etc/musichere.env <<'ENV'
+# 填入后执行 systemctl restart musichere 生效；留空则使用本地规则引擎
+# AI_API_KEY=
+# AI_BASE_URL=https://api.hunyuan.cloud.tencent.com/v1
+# AI_MODEL=hunyuan-turbos-latest
+# AI_VISION_MODEL=hunyuan-vision
+APP_TZ=Asia/Shanghai
+ENV
+  echo "    已创建 /etc/musichere.env（权限 600），需要 AI 时在里面填 AI_API_KEY"
+else
+  echo "    保留已有的 /etc/musichere.env"
+fi
+
 echo "==> systemd 服务"
 cat > /etc/systemd/system/musichere.service <<UNIT
 [Unit]
@@ -71,6 +87,8 @@ Environment=HOST=0.0.0.0
 Environment=DB_PATH=$DATA_DIR/musichere.db
 Environment=UPLOAD_DIR=$DATA_DIR/uploads
 Environment=WEB_DIR=$APP_DIR/web
+# 可选：接入大模型（AI_API_KEY 等）写在这个文件里，不进单元文件、不进仓库
+EnvironmentFile=-/etc/musichere.env
 ExecStart=$APP_DIR/server/node_modules/.bin/tsx src/index.ts
 Restart=always
 RestartSec=2
