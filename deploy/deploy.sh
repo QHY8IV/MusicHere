@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 # 一键部署演示站：在【你的电脑】上运行，构建 web 版 → 打包 → 上传 → 在服务器上安装并启动。
 #
-#   ./deploy/deploy.sh root@121.40.217.6
+#   ./deploy/deploy.sh root@<服务器IP>
 #
 # 前置：本机有 node(>=22) npm ssh scp tar；能 ssh 到服务器（强烈建议先 ssh-copy-id 配置密钥，
 # 不要把密码写进脚本或命令行）。可重复运行用来升级，数据库和用户上传的图片会保留。
 set -euo pipefail
 
-TARGET="${1:?用法: $0 user@host   例如 $0 root@121.40.217.6}"
+TARGET="${1:?用法: $0 user@host   例如 $0 root@<服务器IP>}"
 SSH_OPTS=(-o StrictHostKeyChecking=accept-new)
 DEMO_LOCATION="${DEMO_LOCATION:-31.24,121.49}"   # 示例数据所在坐标（和 seed 一致）
 
