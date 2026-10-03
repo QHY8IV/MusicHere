@@ -11,9 +11,9 @@ const author = process.env.AUTHOR || '作者名';
 const shot = (f) => 'data:image/jpeg;base64,' + fs.readFileSync(path.join(__dirname, '..', 'screens', f)).toString('base64');
 
 const phones = [
-  ['02-now.jpg', '此刻 · 这里的人留下的歌'],
-  ['18-quiz-emoji.jpg', '此地知音 · AI 出谜猜歌'],
-  ['11-bottle.jpg', '漂流瓶 · 到了现场才能打开'],
+  ['10-place.jpg', '共鸣指纹 · 城市的节拍地图'],
+  ['r1-locked.jpg', '对拍 · 定调：两根指针重合'],
+  ['r2-scene.jpg', '入景 · AI 看画面调混音'],
 ];
 
 const html = `<html><head><style>
@@ -30,7 +30,10 @@ body{width:4000px;height:2500px;overflow:hidden;background:#07080C;font-family:"
 .tr .n{font-size:72px;font-weight:900}
 .tr .by{font-size:64px;font-weight:800;margin-top:14px;color:#E8EAF0}
 .title{position:absolute;left:230px;bottom:230px}
-.title h1{font-size:200px;font-weight:900;letter-spacing:6px;background:linear-gradient(90deg,#D2F76A,#7FF0A0,#3EE6C1);-webkit-background-clip:text;color:transparent}
+.mid{position:absolute;left:230px;top:720px;width:1500px;font-size:66px;line-height:1.55;color:#C9CDD8;font-weight:600}
+.mid b{color:#F4F5F7}
+.title .app{font-size:56px;font-weight:800;color:#A7ACB9;letter-spacing:4px;margin-bottom:10px}
+.title h1{font-size:280px;line-height:1.05;font-weight:900;letter-spacing:6px;background:linear-gradient(90deg,#D2F76A,#7FF0A0,#3EE6C1);-webkit-background-clip:text;color:transparent}
 .title p{font-size:64px;color:#C9CDD8;margin-top:20px}
 .phones{position:absolute;right:230px;top:430px;display:flex;gap:110px}
 .ph{width:640px}
@@ -44,10 +47,11 @@ body{width:4000px;height:2500px;overflow:hidden;background:#07080C;font-family:"
 </style></head><body>
 <div class="g1"></div><div class="g2"></div><div class="g3"></div>
 <div class="tl"><div class="a">Build With <b>AI</b></div><div class="b">腾讯音乐首届高校 AI Hackathon · 玩转音乐</div></div>
-<div class="tr"><div class="n">《此地有歌》</div><div class="by">by ${author}</div></div>
+<div class="tr"><div class="n">《共鸣》</div><div class="by">by ${author}</div></div>
 <div class="phones">${phones.map(([f, c]) => `<div class="ph"><div class="frame"><img src="${shot(f)}"/></div><div class="cap">${c}</div></div>`).join('')}</div>
-<div class="title"><h1>此地有歌</h1><p>每个地方，都有它的背景音乐</p>
-<div class="tags"><span class="tag l">此地知音猜歌</span><span class="tag">AI 读懂此刻</span><span class="tag">声音漂流瓶</span></div></div>
+<div class="mid">降噪把世界关在外面，<br/>通透把世界放进来——<br/><b>共鸣，让世界成为你这首歌的一部分。</b></div>
+<div class="title"><div class="app">此地有歌 · MusicHere</div><h1>共鸣</h1><p>让世界为你的歌伴奏</p>
+<div class="tags"><span class="tag l">对拍 · 跟上脚步</span><span class="tag">定调 · 落在环境的调上</span><span class="tag">入景 · AI 调混音</span></div></div>
 </body></html>`;
 
 (async () => {
