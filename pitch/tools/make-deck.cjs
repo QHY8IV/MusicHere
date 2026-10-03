@@ -249,7 +249,7 @@ async function build() {
     },
   );
   text(s, '浏览器实测（合成街头声：112 BPM 脚步 + 110 Hz 嗡鸣）。录下的片段里，锁定后脚步与鼓点合为同一个起音峰。', { x: 6.7, y: 6.25, w: 6.1, h: 0.45, fontSize: 10.5, color: C.text2, lineSpacingMultiple: 1.2 });
-  s.addNotes('对拍原理（40 秒）：四步。AudioWorklet 每 10 毫秒算一次起音强度；最近 6 秒做自相关得到速度，并纠正强弱拍造成的慢一倍；用梳状滑动找到最近一拍的相位；最后逐拍锁相——速度每拍滑 35%，相位每拍最多修 6%，所以听起来是被世界带着走，不是跳拍。右边是浏览器实测：开启约 5 秒锁定，相位差从 150 毫秒收敛到 0 到 2 毫秒。');
+  s.addNotes('对拍原理（30 秒）：四步。AudioWorklet 每 10 毫秒算一次起音强度；最近 6 秒做自相关得到速度，并纠正强弱拍造成的慢一倍；用梳状滑动找到最近一拍的相位；最后逐拍锁相——速度每拍滑 35%，相位每拍最多修 6%，所以听起来是被世界带着走，不是跳拍。右边是浏览器实测：开启约 5 秒锁定，相位差从 150 毫秒收敛到 0 到 2 毫秒。');
 
   // 5 定调 + 入景 + 原创曲
   s = pres.addSlide({ masterName: 'CONTENT_B', sectionTitle: '技术' });
@@ -273,7 +273,7 @@ async function build() {
   icon(s, 'layers', 7.15, 4.65, 0.6);
   text(s, '正式曲目', { x: 7.95, y: 4.72, w: 3.5, h: 0.45, fontSize: 20, bold: true });
   text(s, 'Demo：5 首按级数记谱的实时合成原创曲。正式曲目：离线算节拍和调，实时变速变调（±10–15% / ±2–3 半音内）；差得更远就按速度和调选歌。', { x: 7.15, y: 5.4, w: 5.35, h: 1.15, fontSize: 12.5, color: C.text2, lineSpacingMultiple: 1.3 });
-  s.addNotes('定调与入景（35 秒）：定调把频谱的峰值折叠成 12 个音级——一个音级压过其他就是嗡鸣，能量分散但像某个调就用调性轮廓识别。比如 110 赫兹的嗡鸣是 A，《夜行》就从 E 小调移到 D 小调，让 A 成为属音，只移 2 个半音。入景用混元看图，调混响、明暗、编配和大小调。Demo 用实时合成的原创曲，速度和调都能无损变化；正式版接 QQ 音乐的分轨。');
+  s.addNotes('定调与入景（25 秒）：定调把频谱的峰值折叠成 12 个音级——一个音级压过其他就是嗡鸣，能量分散但像某个调就用调性轮廓识别。比如 110 赫兹的嗡鸣是 A，《夜行》就从 E 小调移到 D 小调，让 A 成为属音，只移 2 个半音。入景用混元看图，调混响、明暗、编配和大小调。Demo 用实时合成的原创曲，速度和调都能无损变化；正式版接 QQ 音乐的分轨。');
 
   // 6 共鸣片段 + 共鸣指纹
   pres.addSection({ title: '传播' });
@@ -292,7 +292,7 @@ async function build() {
     text(s, t, { x: 6.9, y: y - 0.02, w: 5.8, h: 0.42, fontSize: 19, bold: true });
     text(s, d, { x: 6.9, y: y + 0.45, w: 5.8, h: 0.95, fontSize: 13, color: C.text2, lineSpacingMultiple: 1.3 });
   });
-  s.addNotes('传播（30 秒）：共鸣片段把世界和你的歌一起录下来，每一条都独一无二，天然适合分享。共鸣指纹让在场的人贡献这里的拍子和调，只存数字不存声音，慢慢拼出一张城市的节拍地图——下一个人到江边，歌一开始就在调上。');
+  s.addNotes('传播（25 秒）：共鸣片段把世界和你的歌一起录下来，每一条都独一无二，天然适合分享。共鸣指纹让在场的人贡献这里的拍子和调，只存数字不存声音，慢慢拼出一张城市的节拍地图——下一个人到江边，歌一开始就在调上。');
 
   // 7 为什么会主动用
   s = pres.addSlide({ masterName: 'CONTENT_B', sectionTitle: '传播' });
@@ -311,7 +311,7 @@ async function build() {
     text(s, d, { x: x + 1.2, y: y + 0.95, w: 4.45, h: 0.95, fontSize: 14, color: C.text2, lineSpacingMultiple: 1.3 });
   });
   text(s, '结果立刻可感知：踩在鼓点上的那一刻，就是这个产品的全部说服力。', { x: 0.6, y: 6.6, w: 12, h: 0.35, fontSize: 15, bold: true, color: C.accent1 });
-  s.addNotes('为什么会主动用（25 秒）：散步跑步时脚步就是节拍器；通勤时列车的轰鸣变成伴奏；遇到街头艺人，你的歌会转到他的调上；等人发呆时，转向灯和雨声都有了音乐性。不需要改变任何习惯，结果立刻可感知。');
+  s.addNotes('为什么会主动用（20 秒）：散步跑步时脚步就是节拍器；通勤时列车的轰鸣变成伴奏；遇到街头艺人，你的歌会转到他的调上；等人发呆时，转向灯和雨声都有了音乐性。不需要改变任何习惯，结果立刻可感知。');
 
   // 8 完成度
   pres.addSection({ title: '完成度' });
@@ -356,7 +356,28 @@ async function build() {
     text(s, items.map((it, j) => ({ text: it, options: { bullet: true, breakLine: j < items.length - 1 } })), { x: x + 0.3, y: 3.2, w: 3.3, h: 2.45, fontSize: 13.5, paraSpaceAfter: 10, lineSpacingMultiple: 1.15 });
   });
   text(s, '一句话：降噪和通透之后，耳机的下一个模式是「共鸣」。', { x: 0.6, y: 6.15, w: 12, h: 0.45, fontSize: 18, bold: true, color: C.accent1 });
-  s.addNotes('对照评审标准（30 秒）：用户价值上，它改善的是每天最高频的听歌场景，零学习成本、立刻可感知。可行性上，纯浏览器实时运行、已可上线、有实测数据和完整测试。创新性上，这是耳机的第三种模式，在一首歌里连续对齐拍子和调，并且众包出城市的节拍地图。');
+  s.addNotes('对照评审标准（25 秒）：用户价值上，它改善的是每天最高频的听歌场景，零学习成本、立刻可感知。可行性上，纯浏览器实时运行、已可上线、有实测数据和完整测试。创新性上，这是耳机的第三种模式，在一首歌里连续对齐拍子和调，并且众包出城市的节拍地图。');
+
+  // 10b 终极形态：AI 眼镜
+  s = pres.addSlide({ masterName: 'CONTENT_A', sectionTitle: '价值' });
+  head(s, '终极形态：AI 眼镜', '看向谁，就跟谁合奏');
+  s.addImage({ path: path.join(ROOT, 'glasses-concept.jpg'), x: 0.6, y: 1.85, w: 7.4, h: 7.4 * 1080 / 1920, objectName: 'glasses concept' });
+  text(s, '概念示意：看向街头艺人 → 拾音指向他，歌锁到他的鼓点与调；车流、广播被忽略。', { x: 0.6, y: 6.1, w: 7.4, h: 0.3, fontSize: 11, color: C.text2 });
+  text(s, '难点与对策：扬声器回授 → 回声消除（播放内容已知）；常开的麦克风与相机 → 本机分析、不上传、指示灯与一键开关。', { x: 0.6, y: 6.42, w: 7.4, h: 0.45, fontSize: 10, color: C.accent2, lineSpacingMultiple: 1.15 });
+  const glasses = [
+    ['headset', '开放式扬声器', '世界本来就在耳朵里，错拍和跑调更明显——共鸣是刚需'],
+    ['pulse', '内置扬声器、延迟可标定', '没有蓝牙耳机 150–250 ms 的不确定延迟，最适合毫秒级锁相'],
+    ['camera', '第一视角相机', '入景不用掏手机，持续看着眼前调混音'],
+    ['walk', '头部运动传感器', '每一步头都会起伏，步频比口袋里的手机更稳'],
+    ['ear', '麦克风阵列', '按视线方向拾音：选择跟谁合奏，而不是被整条街带着走'],
+  ];
+  glasses.forEach(([ic, t, d], i) => {
+    const y = 1.88 + i * 0.97;
+    icon(s, ic, 8.35, y, 0.55);
+    text(s, t, { x: 9.1, y: y - 0.02, w: 3.7, h: 0.36, fontSize: 15, bold: true });
+    text(s, d, { x: 9.1, y: y + 0.34, w: 3.75, h: 0.55, fontSize: 11, color: C.text2, lineSpacingMultiple: 1.2 });
+  });
+  s.addNotes('终极形态（30 秒）：我们认为共鸣最理想的载体是 AI 眼镜。开放式扬声器让世界本来就在耳朵里，对拍和定调成了刚需；内置扬声器延迟可标定，最适合毫秒级锁相；第一视角相机、头部运动传感器都更合适。最关键的是麦克风阵列：你转头看向街头艺人，拾音就指向他，你的歌锁到他的鼓点、移到他的调上——看向谁，就跟谁合奏。');
 
   // 10 路线图
   s = pres.addSlide({ masterName: 'CONTENT_A', sectionTitle: '价值' });
@@ -364,7 +385,7 @@ async function build() {
   const road = [
     ['现在 · 已完成', HEX.lime, ['街头：对拍 / 定调 / 入景', '跑步：步频选歌、节拍引导、合拍率', '声景：时间 / 天气 / 步子 / 嗡鸣生成', '共鸣片段与共鸣指纹']],
     ['下一步 · 3 个月', HEX.mint, ['正式曲目：离线节拍 / 调 + 实时变速变调', '原生端：react-native-audio-api', '真机与蓝牙耳机延迟校准', '片段分享改为链接 + 参数']],
-    ['之后 · 6–12 个月', HEX.violet, ['与 TWS 耳机通透模式联动', '演出现场：观众手机与舞台同拍', '开放城市节拍地图']],
+    ['之后 · 6–12 个月', HEX.violet, ['AI 眼镜版：看向谁，就跟谁合奏', '与耳机通透模式联动', '演出现场：观众与舞台同拍', '开放城市节拍地图']],
   ];
   s.addShape(pres.shapes.LINE, { x: 0.9, y: 2.35, w: 11.6, h: 0, line: { color: 'FFFFFF', transparency: 75, width: 1.5 }, objectName: 'timeline' });
   road.forEach(([t, c, items], i) => {
@@ -374,7 +395,7 @@ async function build() {
     card(s, x, 3.35, 3.85, 2.55, 'road card ' + t);
     text(s, items.map((it, j) => ({ text: it, options: { bullet: true, breakLine: j < items.length - 1 } })), { x: x + 0.25, y: 3.6, w: 3.4, h: 2.15, fontSize: 14, paraSpaceAfter: 10 });
   });
-  text(s, '目标：成为 QQ 音乐播放器里与「降噪」「通透」并列的第三个开关。', { x: 0.6, y: 6.25, w: 12, h: 0.45, fontSize: 18, bold: true, color: C.accent2 });
+  text(s, '目标：成为 QQ 音乐播放器里与「降噪」「通透」并列的第三个开关，并成为 AI 眼镜上的原生音乐体验。', { x: 0.6, y: 6.25, w: 12, h: 0.45, fontSize: 18, bold: true, color: C.accent2 });
   s.addNotes('路线图（20 秒）：现在实时引擎、原创曲、片段和指纹都已完成。下一步接入 QQ 音乐分轨加实时变速变调，做原生端和蓝牙耳机的延迟校准。之后和耳机的通透模式联动，让演出现场观众的手机和舞台同拍。目标是成为播放器里和降噪、通透并列的第三个开关。');
 
   // 11 结尾

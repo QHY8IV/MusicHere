@@ -6,7 +6,7 @@
 
 在此之上是地点层：路过一个很有氛围的地方，把此刻最配的那首歌留在这里；别人走到这里时，会随机听到前人留下的歌，也会继承这里的「共鸣指纹」（拍子与调）。
 
-参赛材料（Build With AI · 腾讯音乐首届高校 AI Hackathon）在 [`pitch/`](pitch/)：方案文档 `方案.md`、封面 `cover.jpg`、路演 PPT `共鸣-路演.pptx`、带声音的演示视频 `demo.mp4`、共鸣片段 `resonance-clip.m4a`、截图 `screens/`。
+参赛材料（Build With AI · 腾讯音乐首届高校 AI Hackathon）在 [`pitch/`](pitch/)：方案文档 `方案.md`、封面 `cover.jpg`、路演 PPT `共鸣-路演.pptx`、带声音的演示视频 `demo.mp4`、共鸣片段 `resonance-clip.m4a` 与声景片段 `scape-clip.m4a`、AI 眼镜概念图 `glasses-concept.jpg`、截图 `screens/`。
 
 ## 共鸣模式（`app/src/lib/resonance/`）
 
