@@ -111,7 +111,7 @@ async function build() {
       objects: [
         { placeholder: { options: { name: 'kicker', type: 'body', x: 0.6, y: 0.45, w: 8, h: 0.35, fontSize: 13, bold: true, color: C.accent2, margin: 0, charSpacing: 2 }, text: '' } },
         { placeholder: { options: { name: 'title', type: 'title', x: 0.6, y: 0.82, w: 12.1, h: 0.9, fontSize: 34, bold: true, color: C.text1, margin: 0, valign: 'top', align: 'left' }, text: '' } },
-        { text: { text: '此地有歌 · Q Music Ideas AI Hackathon', options: { x: 0.6, y: 7.0, w: 6, h: 0.3, fontSize: 9, color: C.text2, margin: 0 } } },
+        { text: { text: '此地有歌 · Build With AI 腾讯音乐首届高校 AI Hackathon', options: { x: 0.6, y: 7.0, w: 6, h: 0.3, fontSize: 9, color: C.text2, margin: 0 } } },
       ],
       slideNumber: { x: 12.3, y: 7.0, w: 0.5, h: 0.3, fontSize: 9, color: C.text2, align: 'right' },
     });
@@ -135,19 +135,19 @@ async function build() {
   // 1 封面
   pres.addSection({ title: '开场' });
   let s = pres.addSlide({ masterName: 'COVER', sectionTitle: '开场' });
-  text(s, [{ text: 'Q Music ', options: { color: C.text1 } }, { text: 'Ideas', options: { color: C.accent1 } }, { text: '  ·  AI Hackathon 2026  ·  赛道 A 创新音乐产品', options: { color: C.text2, fontSize: 14, bold: false } }], { x: 0.7, y: 0.6, w: 8, h: 0.4, fontSize: 18, bold: true });
+  text(s, [{ text: 'Build With ', options: { color: C.text1 } }, { text: 'AI', options: { color: C.accent5 } }, { text: '  ·  腾讯音乐首届高校 AI Hackathon  ·  赛道② 创新音乐产品', options: { color: C.text2, fontSize: 14, bold: false } }], { x: 0.7, y: 0.6, w: 9, h: 0.4, fontSize: 18, bold: true });
   text(s, '此地有歌', { x: 0.7, y: 2.0, w: 6.2, h: 1.4, fontSize: 80, bold: true, color: C.accent1 });
   text(s, '每个地方，都有它的背景音乐', { x: 0.7, y: 3.5, w: 6.2, h: 0.6, fontSize: 26, color: C.text1 });
-  text(s, '走到一个地方，打开 App，就能听到这里的人留下的歌；\nAI 读懂此刻的光线与心情，再从人群记忆里为你挑一首。', { x: 0.7, y: 4.3, w: 6.0, h: 0.9, fontSize: 14, color: C.text2, lineSpacingMultiple: 1.3 });
-  chip(s, 'AI 读懂此刻', 0.7, 5.5, HEX.violet, 1.5);
-  chip(s, 'AI 声音画像', 2.35, 5.5, HEX.sky, 1.5);
-  chip(s, '声音漂流瓶', 4.0, 5.5, HEX.lime, 1.4);
+  text(s, '走到一个地方，就能听到这里的人留下的歌；\n用这里真实的故事猜歌，把一首歌留给下一个路过的人。', { x: 0.7, y: 4.3, w: 6.0, h: 0.9, fontSize: 14, color: C.text2, lineSpacingMultiple: 1.3 });
+  chip(s, '此地知音猜歌', 0.7, 5.5, HEX.lime, 1.6);
+  chip(s, 'AI 读懂此刻', 2.45, 5.5, HEX.violet, 1.5);
+  chip(s, '声音漂流瓶', 4.1, 5.5, HEX.sky, 1.4);
   text(s, `团队：${AUTHOR}`, { x: 0.7, y: 6.6, w: 6, h: 0.35, fontSize: 12, color: C.text2 });
   // 中间那台压在最上面
   phone(s, '02-now', 6.75, 1.55, 5.0);
   phone(s, '11-bottle', 10.35, 1.55, 5.0);
-  phone(s, '05-scene', 8.55, 1.1, 5.0);
-  s.addNotes('开场（20 秒）：大家好，我们的作品叫《此地有歌》——每个地方，都有它的背景音乐。今天的音乐推荐都在回答“你是谁”，我们想回答的是“你在哪、此刻是什么样”。');
+  phone(s, '18-quiz-emoji', 8.55, 1.1, 5.0);
+  s.addNotes('开场（20 秒）：大家好，我们的作品叫《此地有歌》——每个地方，都有它的背景音乐。今天的音乐推荐都在回答“你是谁”，我们想回答的是“你在哪、此刻是什么样”，并且让音乐在城市里玩起来。');
 
   // 2 问题洞察
   pres.addSection({ title: '问题' });
@@ -156,7 +156,7 @@ async function build() {
   const pains = [
     ['list', '通用歌单 ≠ 此刻', '散步、通勤、等人时，人们会搜“适合傍晚江边听的歌”。但歌单是给所有人的，它不知道这条江、这个傍晚是什么样。'],
     ['ghost', '地点的声音在流失', '街头艺人的一首即兴、小 livehouse 的一场演出、咖啡馆一直循环的那首歌，没有任何平台记录，走了就没了。'],
-    ['people', '音乐社交缺少在场感', '评论区在线上，和真实世界脱节。两个人在同一个地方被同一首歌打动，却永远不会知道彼此。'],
+    ['people', '音乐互动困在屏幕里', '听歌、评论、打榜都在线上完成。两个人在同一个地方被同一首歌打动，却永远不会知道彼此。'],
   ];
   pains.forEach(([ic, t, d], i) => {
     const x = 0.6 + i * 4.1;
@@ -165,8 +165,8 @@ async function build() {
     text(s, t, { x: x + 0.35, y: 3.5, w: 3.2, h: 0.5, fontSize: 21, bold: true });
     text(s, d, { x: x + 0.35, y: 4.15, w: 3.2, h: 1.5, fontSize: 14, color: C.text2, lineSpacingMultiple: 1.35 });
   });
-  text(s, '我们想回答的是：你在哪，此刻是什么样。', { x: 0.6, y: 6.15, w: 12, h: 0.5, fontSize: 20, bold: true, color: C.accent1 });
-  s.addNotes('问题（35 秒）：我们观察到三件事。第一，场景化听歌需求真实存在，但歌单是通用的，不知道“这里”。第二，地点的声音记忆在流失，街头艺人、livehouse 的现场没人记录。第三，音乐社交缺少在场感。');
+  text(s, '我们想回答的是：你在哪，此刻是什么样——并且让人愿意出门去“玩”音乐。', { x: 0.6, y: 6.15, w: 12, h: 0.5, fontSize: 20, bold: true, color: C.accent1 });
+  s.addNotes('问题（30 秒）：我们观察到三件事。第一，场景化听歌需求真实存在，但歌单是通用的，不知道“这里”。第二，地点的声音记忆在流失，街头艺人、livehouse 的现场没人记录。第三，音乐互动困在屏幕里，和真实世界没有关系。');
 
   // 3 产品概念
   pres.addSection({ title: '方案' });
@@ -183,7 +183,7 @@ async function build() {
     chip(s, k, 0.6, y, c, 0.9);
     text(s, d, { x: 1.7, y, w: 5.3, h: 0.38, fontSize: 15, valign: 'middle' });
   });
-  const flow = [['pin', '经过'], ['music', '留下歌'], ['flag', '打卡沉淀'], ['sparkles', '推荐给下一个人']];
+  const flow = [['pin', '经过'], ['music', '听 / 留下歌'], ['flag', '打卡 · 猜歌'], ['mail', '留给下一个人']];
   card(s, 0.6, 4.85, 6.7, 1.85, 'flow card');
   flow.forEach(([ic, t], i) => {
     const x = 0.9 + i * 1.6;
@@ -191,15 +191,37 @@ async function build() {
     text(s, t, { x: x - 0.2, y: 5.85, w: 1.4, h: 0.35, fontSize: 13, bold: true, align: 'center' });
     if (i < flow.length - 1) text(s, '→', { x: x + 0.95, y: 5.15, w: 0.4, h: 0.5, fontSize: 20, color: C.text2, align: 'center' });
   });
-  text(s, '点赞、播放、打卡都会改变推荐权重', { x: 0.9, y: 6.25, w: 6.2, h: 0.3, fontSize: 11, color: C.text2, align: 'center' });
+  text(s, '点赞、在听、打卡都会改变推荐权重，也会变成猜歌的题目', { x: 0.9, y: 6.25, w: 6.2, h: 0.3, fontSize: 11, color: C.text2, align: 'center' });
   phone(s, '03-now-memory', 7.85, 1.45, 5.3);
   phone(s, '09-radar', 10.4, 1.45, 5.3);
-  s.addNotes('方案（35 秒）：我们把歌钉在地点上。每个地点有三类歌单：应景、常听、现场。路人经过时，按定位随机推荐；点赞、播放、打卡都会改变推荐权重。右边是首页的“此地记忆”和附近的声景雷达。');
+  s.addNotes('方案（30 秒）：我们把歌钉在地点上。每个地点有三类歌单：应景、常听、现场。路人经过时按定位推荐；点赞、在听、打卡会改变推荐权重——这些真实行为，也会变成接下来要讲的猜歌题目。');
 
-  // 4 AI 读懂此刻
+  // 4 此地知音（玩起来）
+  pres.addSection({ title: '玩法' });
+  s = pres.addSlide({ masterName: 'CONTENT_A', sectionTitle: '玩法' });
+  head(s, '让音乐玩起来', '此地知音：你有多懂这个地方？');
+  phone(s, '18-quiz-emoji', 0.6, 1.85, 4.6);
+  phone(s, '19-quiz-reveal', 2.9, 1.85, 4.6);
+  phone(s, '20-quiz-result', 5.2, 1.85, 4.6);
+  const play = [
+    ['sparkles', 'AI 用 emoji 出谜', '谜面不许出现歌名和歌手，泄露就自动换成规则谜面'],
+    ['layers', '题目来自真实数据', '最受欢迎的歌、哪首有过现场、何时最热闹、听起来像什么、留言的人在听哪首'],
+    ['pulse', '越快越准分越高', '答对 100 + 速度奖励 + 连对奖励；在现场答题 ×1.2'],
+    ['flag', '知音榜 · 唱片架', '每个地点一张榜；去过、玩过的地方收进唱片架'],
+  ];
+  play.forEach(([ic, t, d], i) => {
+    const y = 1.9 + i * 1.18;
+    icon(s, ic, 7.75, y, 0.62);
+    text(s, t, { x: 8.55, y: y - 0.02, w: 4.2, h: 0.4, fontSize: 17, bold: true });
+    text(s, d, { x: 8.55, y: y + 0.4, w: 4.2, h: 0.7, fontSize: 12.5, color: C.text2, lineSpacingMultiple: 1.25 });
+  });
+  text(s, '题库随真实行为自动生长，每个地方的题都不一样。', { x: 7.75, y: 6.55, w: 5.1, h: 0.3, fontSize: 11.5, color: C.accent2 });
+  s.addNotes('此地知音（45 秒）：这是我们为“玩转音乐”设计的核心玩法。每个地点一局 5 道题，题目全部来自这里真实沉淀的数据：最受欢迎的歌、哪首歌有过现场、什么时候最热闹、留言的人在听哪首。其中一道由 AI 用 emoji 出谜，我们会检查谜面有没有泄露歌名。答得越快、连对越多分越高，人在现场再乘 1.2，每个地点都有一张知音榜。题库随用户行为自动生长，每个地方都不一样。');
+
+  // 5 AI 读懂此刻
   pres.addSection({ title: 'AI' });
-  s = pres.addSlide({ masterName: 'CONTENT_A', sectionTitle: 'AI' });
-  head(s, '核心 AI 能力 ①', 'AI 读懂此刻：拍一下，听这里');
+  s = pres.addSlide({ masterName: 'CONTENT_B', sectionTitle: 'AI' });
+  head(s, '核心 AI 能力', 'AI 读懂此刻：拍一下，听这里');
   phone(s, '04-listen', 0.6, 1.8, 5.0);
   phone(s, '08-scene-photo', 3.05, 1.8, 5.0);
   const steps = [
@@ -214,11 +236,11 @@ async function build() {
     text(s, `${i + 1}  ${t}`, { x: 6.9, y: y - 0.02, w: 5.8, h: 0.4, fontSize: 18, bold: true });
     text(s, d, { x: 6.9, y: y + 0.42, w: 5.8, h: 0.7, fontSize: 13, color: C.text2, lineSpacingMultiple: 1.25 });
   });
-  s.addNotes('AI 读懂此刻（50 秒）：这是我们的核心。用户拍一张照片或写一句心情，混元多模态模型把光线、色彩、心情解析成 14 维情绪坐标；然后在这个地点的人群记忆里，按权重、距离、情绪相似度和时段打分选歌。每一首都附一句有数据依据的理由，比如“近 30 天 7 人在这里听过”。新地点没有数据时，由 AI 补充推荐，解决冷启动。');
+  s.addNotes('AI 读懂此刻（35 秒）：用户拍一张照片或写一句心情，混元多模态模型把光线、色彩、心情解析成情绪坐标；然后在这个地点的人群记忆里，按权重、距离、情绪相似度和时段打分选歌。每一首都附一句有数据依据的理由。新地点没有数据时，由 AI 补充推荐，解决冷启动。');
 
-  // 5 声音画像
-  s = pres.addSlide({ masterName: 'CONTENT_B', sectionTitle: 'AI' });
-  head(s, '核心 AI 能力 ②', 'AI 声音画像：每个地方听起来是什么样');
+  // 6 声音画像
+  s = pres.addSlide({ masterName: 'CONTENT_A', sectionTitle: 'AI' });
+  head(s, 'AI 声音画像', '每个地方听起来是什么样');
   card(s, 0.6, 1.95, 7.6, 1.7, 'quote card');
   text(s, '“江边步道听起来是「夜色」里带点「热血」，黄昏 18–20 点最热闹；人们常在这里听 Beyond、五月天，也曾响起过 1 次现场。”', { x: 0.95, y: 2.2, w: 7.0, h: 1.3, fontSize: 18, italic: true, color: C.accent1, lineSpacingMultiple: 1.3 });
   const facets = [
@@ -234,16 +256,16 @@ async function build() {
     text(s, d, { x: x + 0.8, y: y + 0.36, w: 2.9, h: 0.35, fontSize: 13, color: C.text2 });
   });
   phone(s, '13-live', 9.3, 1.9, 4.9);
-  s.addNotes('声音画像（25 秒）：每个地点会自动生成一张声音画像：情绪构成、24 小时热度、高峰时段、常听歌手，以及 AI 写的一句“这里听起来像什么”。画像按数据签名缓存，数据变了才重写，既省调用又始终新鲜。');
+  s.addNotes('声音画像（20 秒）：每个地点自动生成一张声音画像：情绪构成、24 小时热度、高峰时段、常听歌手，以及 AI 写的一句“这里听起来像什么”。这些统计同时也是猜歌题目的来源。');
 
-  // 6 在场交互
+  // 7 在场交互
   pres.addSection({ title: '在场' });
-  s = pres.addSlide({ masterName: 'CONTENT_A', sectionTitle: '在场' });
-  head(s, '只有到了现场才能完成', '把线上音乐社交拉回真实世界');
+  s = pres.addSlide({ masterName: 'CONTENT_B', sectionTitle: '在场' });
+  head(s, '只有到了现场才能完成', '把线上的音乐互动拉回真实世界');
   const cols = [
-    ['12-throw', 'mail', '声音漂流瓶', '一首歌 + 一句话，只能在现场投；下一个来打卡的陌生人才能捡到。'],
-    ['11-bottle', 'flag', '打卡', '到了现场才能打卡：捡起漂流瓶、点亮足迹，也计入推荐权重。'],
-    ['17-postcard-export', 'image', '声音明信片', '地点图 + 歌 + AI 写的一句话，一键存图发朋友圈，把好奇的人带回现场。'],
+    ['11-bottle', 'mail', '声音漂流瓶', '一首歌 + 一句话，只能在现场投；下一个来打卡的陌生人才能捡到。'],
+    ['21-me-records', 'music', '唱片架', '去过、玩过的地方各收一张唱片，贴纸颜色是那里的情绪。'],
+    ['17-postcard-export', 'image', '声音明信片', '地点图 + 歌 + AI 写的一句话，一键存图分享，把好奇的人带回现场。'],
   ];
   cols.forEach(([shotId, ic, t, d], i) => {
     const x = 0.6 + i * 4.1;
@@ -255,17 +277,17 @@ async function build() {
     text(s, t, { x: x + 0.95, y: 5.25, w: 2.7, h: 0.42, fontSize: 18, bold: true });
     text(s, d, { x: x + 0.3, y: 5.8, w: 3.3, h: 0.8, fontSize: 12.5, color: C.text2, lineSpacingMultiple: 1.25 });
   });
-  s.addNotes('在场交互（30 秒）：有些事只能在现场完成。声音漂流瓶只能在地点投放，下一个打卡的陌生人才能捡到。打卡还能生成声音明信片，一键分享，把好奇的人重新带回这个地方。');
+  s.addNotes('在场交互（25 秒）：有些事只能在现场完成。声音漂流瓶只能在地点投放，下一个打卡的陌生人才能捡到。去过的地方会变成唱片架上的一张唱片。声音明信片一键分享，把好奇的人重新带回这个地方。');
 
-  // 7 AI 全链路
-  s = pres.addSlide({ masterName: 'CONTENT_B', sectionTitle: 'AI' });
+  // 8 AI 全链路
+  s = pres.addSlide({ masterName: 'CONTENT_A', sectionTitle: 'AI' });
   head(s, 'AI 贯穿全链路', '六处 AI，每一处都解决一个具体问题');
   const ai = [
     ['camera', '读懂此刻', '照片 + 心情 → 情绪坐标', '“此刻的感觉”无法用规则表达'],
+    ['sparkles', 'AI 出谜', '用 emoji 描述一首歌', '让猜歌好玩，且自动防泄露'],
     ['chat', '推荐理由', '基于真实数据生成一句解释', '让推荐可解释、可信'],
     ['snow', '冷启动', '新地点由大模型补充推荐', '地点类产品最难的一关'],
-    ['pulse', '声音画像', '统计数据 → 有温度的描述', '让一个地方“有性格”'],
-    ['pen', '帮我写', '按地点与歌曲生成分享文案', '降低 UGC 门槛'],
+    ['pulse', '声音画像 · 帮我写', '统计 → 有温度的描述与文案', '降低分享门槛'],
     ['shield', '内容审核', '规则 + 大模型双重把关', '社区安全，失败时放行不阻塞'],
   ];
   ai.forEach(([ic, t, what, why], i) => {
@@ -277,13 +299,13 @@ async function build() {
     text(s, why, { x: x + 0.3, y: y + 1.5, w: 3.3, h: 0.38, fontSize: 12, color: C.text2 });
   });
   text(s, '默认接入腾讯混元（OpenAI 兼容接口，可替换）；未配置大模型时自动降级为本地规则引擎，并在界面如实标注。', { x: 0.6, y: 6.6, w: 12, h: 0.3, fontSize: 11.5, color: C.text2 });
-  s.addNotes('AI 全链路（25 秒）：除了读懂此刻和声音画像，AI 还负责推荐理由、新地点冷启动、帮用户写分享文案，以及内容审核。默认接入腾讯混元，没有配置时会降级为本地规则引擎，界面上如实标注，保证任何环境下都能完整演示。');
+  s.addNotes('AI 全链路（20 秒）：除了读懂此刻和出谜，AI 还负责推荐理由、新地点冷启动、声音画像和文案，以及内容审核。默认接入腾讯混元，没有配置时降级为本地规则引擎，界面上如实标注，保证任何环境下都能完整演示。');
 
-  // 8 完成度
+  // 9 完成度
   pres.addSection({ title: '完成度' });
-  s = pres.addSlide({ masterName: 'CONTENT_A', sectionTitle: '完成度' });
+  s = pres.addSlide({ masterName: 'CONTENT_B', sectionTitle: '完成度' });
   head(s, '完成度', '不是概念稿，是能跑起来的产品');
-  const stats = [['84', '项后端自动化测试'], ['16', '步端到端测试，自动录制演示视频'], ['3 端', 'iOS / Android / Web 一套代码'], ['1 条', '命令部署到 Linux 服务器']];
+  const stats = [['95', '项服务端自动化测试'], ['18', '步端到端测试，演示视频由它录制'], ['3 端', 'iOS / Android / Web 一套代码'], ['1 条', '命令部署上线']];
   stats.forEach(([n, l], i) => {
     const x = 0.6 + i * 3.1;
     text(s, n, { x, y: 1.95, w: 2.9, h: 1.0, fontSize: 54, bold: true, color: C.accent1 });
@@ -291,7 +313,7 @@ async function build() {
   });
   const arch = [
     ['手机 App', 'Expo · React Native\n此刻 / 地点 / 听这里 / 分享 / 我的', HEX.lime],
-    ['API 服务', 'Fastify · SQLite\n地点、歌单、权重、打卡、漂流瓶', HEX.mint],
+    ['API 服务', 'Fastify · SQLite\n歌单、权重、打卡、猜歌、漂流瓶', HEX.mint],
     ['AI 层', '腾讯混元（文本 + 视觉）\n本地规则引擎兜底', HEX.violet],
     ['QQ 音乐', '一键跳转播放\n（规划：曲库与播放 SDK）', HEX.sky],
   ];
@@ -302,54 +324,54 @@ async function build() {
     text(s, d, { x: x + 0.25, y: 5.0, w: 2.35, h: 1.0, fontSize: 12, color: C.text2, lineSpacingMultiple: 1.3 });
     if (i < arch.length - 1) text(s, '→', { x: x + 2.75, y: 4.95, w: 0.35, h: 0.5, fontSize: 20, color: C.text2, align: 'center' });
   });
-  s.addNotes('完成度（25 秒）：这不是概念稿。后端 84 项自动化测试，前端 16 步端到端测试并自动录制了演示视频，一套代码覆盖 iOS、安卓和 Web，一条命令部署。架构上，App、API、AI 层分离，播放导流到 QQ 音乐。');
+  s.addNotes('完成度（20 秒）：这不是概念稿。服务端 95 项自动化测试，端到端测试 18 步，演示视频就是它录下来的；一套代码覆盖 iOS、安卓和 Web，一条命令部署上线。猜歌的答案只在服务端、服务端计时，打卡要校验距离，防作弊。');
 
-  // 9 商业价值
-  pres.addSection({ title: '商业' });
-  s = pres.addSlide({ masterName: 'CONTENT_B', sectionTitle: '商业' });
-  head(s, '商业价值', '一个新的推荐维度：在哪听');
-  const biz = [
-    ['music', 'QQ 音乐 / TME', '新增“附近 · 此刻”入口：线下场景带来新的打开时机；明信片与漂流瓶形成社交裂变；播放全部导流到 QQ 音乐。'],
-    ['business', '文旅、商圈与门店', '认领地点，发布官方“这里的声音”与店内 BGM；按热度曲线安排营销；地点画像就是一份声音版商圈报告。'],
-    ['mic', '演出与音乐人', 'livehouse 与街头艺人的“现场”歌单成为宣传渠道，衔接演出票务；独立音乐人把歌投放到合适的地点。'],
-    ['data', '独有数据资产', '“地点 × 时段 × 情绪 × 歌曲”的数据集，是现有平台没有的场景化推荐训练数据。'],
+  // 10 对照评审标准
+  pres.addSection({ title: '价值' });
+  s = pres.addSlide({ masterName: 'CONTENT_A', sectionTitle: '价值' });
+  head(s, '对照评审标准', '用户价值 · 可行性 · 创新性');
+  const crit = [
+    ['music', '用户价值', HEX.lime, ['出门的每一刻都有“对的歌”，依据是这里、此刻、这些人', '猜歌有内容可玩：玩完真的更懂这个地方', '漂流瓶、知音榜让同一地点的陌生人互相看见', '街头艺人和小型演出第一次被记录']],
+    ['shield', '可行性', HEX.mint, ['三端一套代码，已可部署上线', '95 项服务端测试 + 18 步端到端测试', '大模型不可用时自动降级，功能不中断', '下一步接 QQ 音乐曲库与播放 SDK']],
+    ['sparkles', '创新性', HEX.violet, ['推荐的主语从“人”换成“地点 + 此刻”', '用地点的人群记忆出题，题库自动生长', '只能在现场完成的玩法', '每句理由、每条冷知识都有真实数据依据']],
   ];
-  biz.forEach(([ic, t, d], i) => {
-    const x = 0.6 + (i % 2) * 6.15, y = 1.95 + Math.floor(i / 2) * 2.45;
-    card(s, x, y, 5.9, 2.2, 'biz card ' + t);
-    icon(s, ic, x + 0.3, y + 0.3, 0.7);
-    text(s, t, { x: x + 1.2, y: y + 0.38, w: 4.4, h: 0.5, fontSize: 20, bold: true });
-    text(s, d, { x: x + 1.2, y: y + 0.95, w: 4.45, h: 1.15, fontSize: 14, color: C.text2, lineSpacingMultiple: 1.3 });
+  crit.forEach(([ic, t, c, items], i) => {
+    const x = 0.6 + i * 4.1;
+    card(s, x, 1.95, 3.85, 3.85, 'criteria ' + t);
+    icon(s, ic, x + 0.3, 2.25, 0.62);
+    text(s, t, { x: x + 1.1, y: 2.33, w: 2.5, h: 0.5, fontSize: 21, bold: true, color: c });
+    text(s, items.map((it, j) => ({ text: it, options: { bullet: true, breakLine: j < items.length - 1 } })), { x: x + 0.3, y: 3.2, w: 3.3, h: 2.45, fontSize: 13.5, paraSpaceAfter: 10, lineSpacingMultiple: 1.15 });
   });
-  s.addNotes('商业价值（30 秒）：对 QQ 音乐，这是一个新的推荐维度“在哪听”，带来线下打开时机和社交裂变。对文旅、商圈和门店，可以认领地点、发布官方声音。对演出和音乐人，现场歌单就是宣传渠道，能衔接票务。最后，地点×时段×情绪×歌曲的数据，是平台独有的资产。');
+  text(s, '一句话：让每个地方都有自己的背景音乐，也让音乐成为出门的理由。', { x: 0.6, y: 6.15, w: 12, h: 0.45, fontSize: 18, bold: true, color: C.accent1 });
+  s.addNotes('对照评审标准（30 秒）：用户价值上，每一刻都有对的歌，猜歌让人真的更懂一个地方，漂流瓶和知音榜让陌生人互相看见。可行性上，三端一套代码、已可部署，测试完整，模型不可用时也不中断。创新性上，推荐的主语换成了地点和此刻，题库由真实行为自动生长，玩法只能在现场完成。');
 
-  // 10 路线图
-  s = pres.addSlide({ masterName: 'CONTENT_A', sectionTitle: '商业' });
+  // 11 路线图
+  s = pres.addSlide({ masterName: 'CONTENT_B', sectionTitle: '价值' });
   head(s, '路线图', '从一个 App，到 QQ 音乐里的一个入口');
   const road = [
-    ['现在 · 已完成', HEX.lime, ['三类地点歌单与推荐权重', 'AI 读懂此刻 / 声音画像 / 帮我写 / 审核', '漂流瓶、打卡、明信片', '一键跳转 QQ 音乐']],
-    ['下一步 · 3 个月', HEX.mint, ['接入 QQ 音乐曲库与播放 SDK', '听歌识曲自动记录“现场”', '在 2–3 个城市街区试点']],
-    ['之后 · 6–12 个月', HEX.violet, ['商家 / 景区认领后台', '演出排期与票务联动', '城市声音地图与年度报告']],
+    ['现在 · 已完成', HEX.lime, ['三类地点歌单与推荐权重', 'AI 读懂此刻 / 声音画像 / 审核', '此地知音猜歌、知音榜、唱片架', '漂流瓶、明信片、跳转 QQ 音乐']],
+    ['下一步 · 3 个月', HEX.mint, ['接入 QQ 音乐曲库与播放 SDK', '上线“听前奏猜歌”题型', '听歌识曲自动记录“现场”', '在 2–3 个校园 / 街区试点']],
+    ['之后 · 6–12 个月', HEX.violet, ['商家 / 景区认领地点', '演出排期与票务联动', '城市声音地图与年度报告']],
   ];
   s.addShape(pres.shapes.LINE, { x: 0.9, y: 2.35, w: 11.6, h: 0, line: { color: 'FFFFFF', transparency: 75, width: 1.5 }, objectName: 'timeline' });
   road.forEach(([t, c, items], i) => {
     const x = 0.6 + i * 4.1;
     s.addShape(pres.shapes.OVAL, { x: x + 0.15, y: 2.2, w: 0.3, h: 0.3, fill: { color: c }, line: { color: c }, objectName: 'dot ' + t });
     text(s, t, { x, y: 2.75, w: 3.8, h: 0.45, fontSize: 19, bold: true, color: c });
-    card(s, x, 3.35, 3.85, 2.45, 'road card ' + t);
-    text(s, items.map((it, j) => ({ text: it, options: { bullet: true, breakLine: j < items.length - 1 } })), { x: x + 0.25, y: 3.6, w: 3.4, h: 2.05, fontSize: 14, paraSpaceAfter: 10 });
+    card(s, x, 3.35, 3.85, 2.55, 'road card ' + t);
+    text(s, items.map((it, j) => ({ text: it, options: { bullet: true, breakLine: j < items.length - 1 } })), { x: x + 0.25, y: 3.6, w: 3.4, h: 2.15, fontSize: 14, paraSpaceAfter: 10 });
   });
-  text(s, '目标：成为 QQ 音乐里的「附近 · 此刻」入口，让每一次出门都有一首对的歌。', { x: 0.6, y: 6.2, w: 12, h: 0.45, fontSize: 18, bold: true, color: C.accent2 });
-  s.addNotes('路线图（20 秒）：现在核心功能都已完成。下一步接入 QQ 音乐曲库和播放 SDK，用听歌识曲自动记录现场，并在两三个街区试点。之后开放商家和景区后台，联动演出票务，做城市声音地图。');
+  text(s, '目标：成为 QQ 音乐里的「附近 · 此刻」入口，让每一次出门都有一首对的歌。', { x: 0.6, y: 6.25, w: 12, h: 0.45, fontSize: 18, bold: true, color: C.accent2 });
+  s.addNotes('路线图（15 秒）：现在核心功能都已完成。下一步接入 QQ 音乐曲库和播放 SDK，上线听前奏猜歌，用听歌识曲自动记录现场，先在校园和街区试点。之后开放商家和景区认领，联动演出票务。');
 
-  // 11 结尾
+  // 12 结尾
   pres.addSection({ title: '结尾' });
   s = pres.addSlide({ masterName: 'COVER', sectionTitle: '结尾' });
   text(s, '每个地方，\n都有它的背景音乐。', { x: 0.8, y: 1.5, w: 7.5, h: 2.6, fontSize: 52, bold: true, color: C.accent1, lineSpacingMultiple: 1.15 });
   text(s, '此地有歌 —— 让下一个路过的人，听见你在这里听见的。', { x: 0.8, y: 4.35, w: 7.5, h: 0.5, fontSize: 18, color: C.text1 });
   text(s, `谢谢 · ${AUTHOR}`, { x: 0.8, y: 5.6, w: 7, h: 0.5, fontSize: 18, bold: true, color: C.text2 });
-  phone(s, '06-scene-picks', 9.4, 0.9, 5.7);
-  s.addNotes('结尾（15 秒）：每个地方，都有它的背景音乐。《此地有歌》让下一个路过的人，听见你在这里听见的。谢谢大家，欢迎提问。');
+  phone(s, '20-quiz-result', 9.4, 0.9, 5.7);
+  s.addNotes('结尾（10 秒）：每个地方，都有它的背景音乐。《此地有歌》让下一个路过的人，听见你在这里听见的。谢谢大家，欢迎提问。');
 
   await pres.writeFile({ fileName: OUT });
   try {
