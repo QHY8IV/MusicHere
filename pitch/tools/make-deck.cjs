@@ -193,6 +193,31 @@ async function build() {
   text(s, '紫：世界的拍子\n青柠：歌的拍子\n两根指针重合 = 已对拍', { x: 11.0, y: 2.0, w: 2.0, h: 1.2, fontSize: 11, color: C.text2, lineSpacingMultiple: 1.3 });
   s.addNotes('方案（35 秒）：共鸣模式做三件事。对拍：听出环境里的节奏，歌的速度平滑滑过去，每一拍落在世界的拍点上。定调：听出环境里持续的音高，歌移调过去。入景：拍一下眼前，AI 调混响、明暗和编配。右边的调性轮上，紫色指针是世界的拍子，青柠是歌的拍子，重合就是对上了。所有环境声都只在本机分析，不上传。');
 
+  // 3b 三种模式 + 对比
+  s = pres.addSlide({ masterName: 'CONTENT_A', sectionTitle: '方案' });
+  head(s, '一个引擎，三种模式', '街头 · 跑步 · 声景');
+  phone(s, 'm1-run-guide', 0.6, 1.85, 4.55);
+  phone(s, 'm3-scape', 2.85, 1.85, 4.55);
+  text(s, '跑步', { x: 0.6, y: 6.5, w: 2.2, h: 0.3, fontSize: 11, bold: true, color: C.accent1, align: 'center' });
+  text(s, '声景', { x: 2.85, y: 6.5, w: 2.2, h: 0.3, fontSize: 11, bold: true, color: C.accent5, align: 'center' });
+  const th = (t, c) => ({ text: t, options: { bold: true, color: c, fill: { color: HEX.surface2 }, fontSize: 12.5 } });
+  const td = (t, hl = false) => ({ text: t, options: { color: hl ? HEX.lime : HEX.text, bold: hl, fill: { color: HEX.surface }, fontSize: 11.5 } });
+  const lbl = (t) => ({ text: t, options: { color: HEX.sub, bold: true, fill: { color: HEX.surface }, fontSize: 11.5 } });
+  s.addTable(
+    [
+      [th('', HEX.sub), th('Spotify Running', HEX.sub), th('Endel', HEX.sub), th('共鸣', HEX.lime)],
+      [lbl('跟步频'), td('挑同速度的歌'), td('运动状态影响声景'), td('一首歌里逐拍对齐相位 + 合拍率', true)],
+      [lbl('主动引导'), td('无'), td('无'), td('音乐先快 3%，带你到目标步频', true)],
+      [lbl('听真实环境'), td('无'), td('不听（时间、天气、心率、运动）'), td('环境的节奏、嗡鸣决定拍子和根音', true)],
+      [lbl('地点'), td('无'), td('只用来推算天气'), td('共鸣指纹：众包的城市节拍地图', true)],
+      [lbl('放什么'), td('曲库里的歌'), td('只有生成的声景'), td('街头 / 跑步对齐你的歌；声景生成音乐', true)],
+    ],
+    { x: 5.35, y: 1.95, w: 7.4, colW: [1.25, 1.85, 1.95, 2.35], rowH: 0.62, border: { type: 'solid', color: '2A2F3D', pt: 0.75 }, valign: 'middle', margin: 0.08, fontFace: '+mn-lt' },
+  );
+  text(s, '同一套"听世界"的能力，覆盖一天里通勤、运动、工作和睡前四种场景。', { x: 5.35, y: 6.0, w: 7.4, h: 0.4, fontSize: 14, bold: true, color: C.accent1 });
+  text(s, '对比依据各产品公开介绍；Spotify Running 已于 2018 年前后下线。', { x: 5.35, y: 6.45, w: 7.4, h: 0.3, fontSize: 10, color: C.text2 });
+  s.addNotes('三种模式（35 秒）：同一个引擎有三种用法。跑步时它数你的步频，自动挑最合拍的歌，锁在你的脚步上；设了目标，音乐先快 3% 把你带上去。声景不放歌，用时间、天气、步子和身边的嗡鸣实时生成。和 Spotify Running 比，我们不只是挑同速度的歌，而是在一首歌里逐拍对齐，还会主动引导；和 Endel 比，我们会听真实的环境，根音跟着街上的嗡鸣走。');
+
   // 4 对拍原理 + 实测
   pres.addSection({ title: '技术' });
   s = pres.addSlide({ masterName: 'CONTENT_A', sectionTitle: '技术' });
@@ -246,8 +271,8 @@ async function build() {
   text(s, '腾讯混元看图 → 能量、效价、情绪；画面明暗在本机计算；地点类型决定空间。\n→ 编配密度 · 低通明暗 · 大小调 · 混响（小房间 / 开阔户外 / 隧道 / 现场）', { x: 7.15, y: 2.95, w: 5.35, h: 1.15, fontSize: 12.5, color: C.text2, lineSpacingMultiple: 1.3 });
   card(s, 6.85, 4.4, 5.9, 2.25, 'synth card');
   icon(s, 'layers', 7.15, 4.65, 0.6);
-  text(s, '原创生成曲', { x: 7.95, y: 4.72, w: 3.5, h: 0.45, fontSize: 20, bold: true });
-  text(s, '4 首按「级数」记谱、浏览器实时合成的原创曲：速度与调可以连续、无损地变化，没有版权风险。正式版：QQ 音乐分轨 + 实时变速变调。', { x: 7.15, y: 5.4, w: 5.35, h: 1.15, fontSize: 12.5, color: C.text2, lineSpacingMultiple: 1.3 });
+  text(s, '正式曲目', { x: 7.95, y: 4.72, w: 3.5, h: 0.45, fontSize: 20, bold: true });
+  text(s, 'Demo：5 首按级数记谱的实时合成原创曲。正式曲目：离线算节拍和调，实时变速变调（±10–15% / ±2–3 半音内）；差得更远就按速度和调选歌。', { x: 7.15, y: 5.4, w: 5.35, h: 1.15, fontSize: 12.5, color: C.text2, lineSpacingMultiple: 1.3 });
   s.addNotes('定调与入景（35 秒）：定调把频谱的峰值折叠成 12 个音级——一个音级压过其他就是嗡鸣，能量分散但像某个调就用调性轮廓识别。比如 110 赫兹的嗡鸣是 A，《夜行》就从 E 小调移到 D 小调，让 A 成为属音，只移 2 个半音。入景用混元看图，调混响、明暗、编配和大小调。Demo 用实时合成的原创曲，速度和调都能无损变化；正式版接 QQ 音乐的分轨。');
 
   // 6 共鸣片段 + 共鸣指纹
@@ -273,10 +298,10 @@ async function build() {
   s = pres.addSlide({ masterName: 'CONTENT_B', sectionTitle: '传播' });
   head(s, '为什么会主动用', '不改变习惯，只是多了一个开关');
   const uses = [
-    ['walk', '散步 · 跑步', '脚步就是节拍器：加速度计识别步频，歌跟着你的步子走'],
+    ['walk', '散步 · 跑步', '脚步就是节拍器：歌锁在步子上；想跑快一点，音乐先快 3% 带你'],
     ['train', '通勤', '列车的节奏、进站的轰鸣，从噪音变成伴奏'],
     ['guitar', '街头艺人', '他弹 G 大调，你的歌也到 G 大调；还能把现场记进这个地点'],
-    ['hand', '等人 · 发呆', '转向灯、雨声、风铃……日常的声音突然有了音乐性'],
+    ['hand', '专注 · 入睡', '声景：时间、天气和窗外的嗡鸣，生成只属于此刻的背景声'],
   ];
   uses.forEach(([ic, t, d], i) => {
     const x = 0.6 + (i % 2) * 6.15, y = 1.95 + Math.floor(i / 2) * 2.3;
@@ -292,7 +317,7 @@ async function build() {
   pres.addSection({ title: '完成度' });
   s = pres.addSlide({ masterName: 'CONTENT_A', sectionTitle: '完成度' });
   head(s, '完成度', '已经在浏览器里跑起来了');
-  const stats = [['~5 s', '锁定环境拍子'], ['0–2 ms', '锁定后的相位差'], ['19 + 98', 'DSP 单测 + 服务端测试'], ['21 步', '端到端测试（假麦克风）']];
+  const stats = [['~5 s', '锁定环境拍子'], ['0–2 ms', '锁定后的相位差'], ['34 + 98', '前端单测 + 服务端测试'], ['23 步', '端到端测试（含假麦克风）']];
   stats.forEach(([n, l], i) => {
     const x = 0.6 + i * 3.1;
     text(s, n, { x, y: 1.95, w: 2.95, h: 1.0, fontSize: 44, bold: true, color: C.accent1 });
@@ -311,7 +336,7 @@ async function build() {
     text(s, d, { x: x + 0.25, y: 4.9, w: 2.35, h: 1.1, fontSize: 12, color: C.text2, lineSpacingMultiple: 1.3 });
     if (i < arch.length - 1) text(s, '→', { x: x + 2.75, y: 4.9, w: 0.35, h: 0.5, fontSize: 20, color: C.text2, align: 'center' });
   });
-  text(s, '端到端测试用合成的街头声当麦克风，在真实浏览器里断言 112 BPM 对拍、D 小调定调、片段下载与指纹；演示视频就是它录下来的。', { x: 0.6, y: 6.45, w: 12, h: 0.4, fontSize: 11.5, color: C.text2 });
+  text(s, '端到端测试用合成的街头声当麦克风、合成的加速度当跑步，在真实浏览器里断言对拍、定调、步频引导、声景与片段；演示视频就是它录下来的。', { x: 0.6, y: 6.45, w: 12, h: 0.4, fontSize: 11.5, color: C.text2 });
   s.addNotes('完成度（25 秒）：这一切已经在浏览器里跑起来了：约 5 秒锁定，锁定后相位差 0 到 2 毫秒。DSP 有 19 项单元测试，服务端 98 项；端到端测试用合成的街头声当麦克风，在真实浏览器里验证对拍和定调。分析和合成全在本机，服务端只收指纹的几个数字。');
 
   // 9 对照评审标准
@@ -319,9 +344,9 @@ async function build() {
   s = pres.addSlide({ masterName: 'CONTENT_B', sectionTitle: '价值' });
   head(s, '对照评审标准', '用户价值 · 可行性 · 创新性');
   const crit = [
-    ['music', '用户价值', HEX.lime, ['改善每天通勤、散步、跑步的听歌体验', '零学习成本，开关一开立刻可感知', '共鸣片段可分享，指纹留给后来者', '环境声不上传，隐私友好']],
-    ['shield', '可行性', HEX.mint, ['纯浏览器实时运行，已可部署上线', '实测约 5 秒锁定，相位差 0–2 ms', '19 项 DSP 单测 + 98 项服务端 + 21 步 e2e', '接 QQ 音乐分轨即可用于正式曲目']],
-    ['sparkles', '创新性', HEX.violet, ['耳机的第三种模式：与环境合奏', '在一首歌里连续对齐拍子相位与调', '众包的城市节拍地图', '原创曲按级数记谱，速度与调无损变化']],
+    ['music', '用户价值', HEX.lime, ['通勤、跑步、专注、入睡全天可用', '零学习成本，开关一开立刻可感知', '跑步有合拍率、能被音乐带着提速', '环境声不上传，隐私友好']],
+    ['shield', '可行性', HEX.mint, ['纯浏览器实时运行，已可部署上线', '实测约 5 秒锁定，相位差 0–2 ms', '34 项前端单测 + 98 项服务端 + 23 步 e2e', '正式曲目：离线节拍 / 调 + 实时变速变调，太远就换歌']],
+    ['sparkles', '创新性', HEX.violet, ['耳机的第三种模式：与环境合奏', '在一首歌里连续对齐拍子相位与调', '会主动引导步频；会听环境的声景', '众包的城市节拍地图']],
   ];
   crit.forEach(([ic, t, c, items], i) => {
     const x = 0.6 + i * 4.1;
@@ -337,8 +362,8 @@ async function build() {
   s = pres.addSlide({ masterName: 'CONTENT_A', sectionTitle: '价值' });
   head(s, '路线图', '从一个网页，到 QQ 音乐播放器里的一个模式');
   const road = [
-    ['现在 · 已完成', HEX.lime, ['对拍 / 定调 / 入景 实时引擎', '4 首原创生成曲、共鸣片段', '共鸣指纹与地点页', '脚步对拍（加速度计）']],
-    ['下一步 · 3 个月', HEX.mint, ['QQ 音乐分轨 + 实时变速变调', '原生端：react-native-audio-api', '真机与蓝牙耳机延迟校准', '校园 / 街区试点']],
+    ['现在 · 已完成', HEX.lime, ['街头：对拍 / 定调 / 入景', '跑步：步频选歌、节拍引导、合拍率', '声景：时间 / 天气 / 步子 / 嗡鸣生成', '共鸣片段与共鸣指纹']],
+    ['下一步 · 3 个月', HEX.mint, ['正式曲目：离线节拍 / 调 + 实时变速变调', '原生端：react-native-audio-api', '真机与蓝牙耳机延迟校准', '片段分享改为链接 + 参数']],
     ['之后 · 6–12 个月', HEX.violet, ['与 TWS 耳机通透模式联动', '演出现场：观众手机与舞台同拍', '开放城市节拍地图']],
   ];
   s.addShape(pres.shapes.LINE, { x: 0.9, y: 2.35, w: 11.6, h: 0, line: { color: 'FFFFFF', transparency: 75, width: 1.5 }, objectName: 'timeline' });

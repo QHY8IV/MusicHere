@@ -3,6 +3,8 @@
  * 112 BPM 的脚步 + A 音的发动机嗡鸣），对着真实后端走一遍核心流程：
  *   登录 → 此刻（推荐理由 / 换一首 / 点赞）
  *   → 共鸣（对拍到 112 BPM、定调到以 A 为属音的 D 小调、录片段、AI 入景、留下共鸣指纹）
+ *   → 跑步（合成的 170 步/分 加速度：自动挑歌、节拍引导、锁到脚步、合拍率）
+ *   → 声景（模拟的 Open-Meteo 小雨 + 步子 + 嗡鸣 → 生成式声景，录片段）
  *   → 听这里（一句话 & 照片，AI 场景理解，留下 AI 推荐）
  *   → 声景雷达 → 地点（AI 声音画像、打卡捡漂流瓶、此地知音猜歌、投漂流瓶、现场、留言与审核、明信片）
  *   → 分享（新地点 + 照片 + 帮我写）→ 我的（唱片架、漂流瓶）→ 离开现场 → 无定位时用示例位置
@@ -52,6 +54,10 @@ const FAR = { latitude: 31.24 + 900 / 111195, longitude: 121.49, accuracy: 20 };
     acceptDownloads: true,
     ...(VIDEO_DIR ? { recordVideo: { dir: VIDEO_DIR, size: { width: 390, height: 844 } } } : {}),
   });
+  // 天气：固定成「小雨 17°C、风 14 km/h」，测试不依赖外网
+  await ctx.route('https://api.open-meteo.com/**', (r) =>
+    r.fulfill({ json: { current: { temperature_2m: 17.4, precipitation: 0.8, weather_code: 61, wind_speed_10m: 14, is_day: 1 } } }),
+  );
   const page = await ctx.newPage();
   const t0 = Date.now();
   /** 录视频时记录每一步开始的时间点，用来给成片配字幕；audio 是要混进成片的声音片段 */
@@ -187,6 +193,69 @@ const FAR = { latitude: 31.24 + 900 / 111195, longitude: 121.49, accuracy: 20 };
     await V('res-stop').click();
   });
 
+  await step('跑步：数出步频、自动挑歌、节拍引导，再锁到脚步上', async () => {
+    // 合成的跑步加速度：170 步 / 分，每一步一个落地冲击
+    await page.evaluate(() => {
+      const period = 60000 / 170;
+      const t0 = performance.now();
+      window.__runner = setInterval(() => {
+        const ph = ((performance.now() - t0) % period) / period;
+        const y = 9.8 + (ph < 0.12 ? 7 * Math.exp(-ph * 30) : 0) + (Math.random() - 0.5) * 0.3;
+        window.dispatchEvent(new DeviceMotionEvent('devicemotion', { accelerationIncludingGravity: { x: 0.2, y, z: 0.4 }, interval: 16 }));
+      }, 16);
+    });
+    await page.mouse.move(195, 420);
+    await page.mouse.wheel(0, -3000);
+    await V('res-mode-run').click();
+    await V('run-target-180').click();
+    await V('res-start').click();
+    await V('run-guide').filter({ hasText: '节拍引导' }).waitFor({ timeout: 15000 });
+    const cad = digits(await V('run-cadence').innerText());
+    assert.ok(Math.abs(cad - 170) <= 4, `步频应约 170，实际 ${cad}`);
+    assert.match(await V('run-guide').innerText(), /音乐比你的步子快 3%，带你从 1\d\d 提到 180/);
+    await V('song-sprint').filter({ hasText: '最合拍' }).waitFor({ timeout: 10000 });
+    await V('run-panel').scrollIntoViewIfNeeded();
+    await shot('m1-run-guide');
+    await pause(1800);
+    await V('run-target-follow').click();
+    await V('run-guide').filter({ hasText: '已锁到你的脚步' }).waitFor({ timeout: 10000 });
+    await page.waitForFunction(() => {
+      const el = [...document.querySelectorAll('[data-testid=run-onbeat]')].find((e) => e.offsetParent);
+      return el && Number(el.innerText.replace('%', '')) >= 80;
+    }, null, { timeout: 25000 });
+    await shot('m2-run-locked');
+    await pause(1800);
+    await V('res-stop').click();
+  });
+
+  await step('声景：时间 + 天气 + 步子 + 环境嗡鸣 → 实时生成的声景（录 10 秒）', async () => {
+    await page.mouse.move(195, 420);
+    await page.mouse.wheel(0, -3000);
+    await V('res-mode-scape').click();
+    await V('scape-walk').click();
+    await V('res-start').click();
+    await V('scape-weather').filter({ hasText: '雨 17°C' }).waitFor();
+    await V('scape-inputs').filter({ hasText: '持续的 A 音' }).waitFor({ timeout: 15000 });
+    await V('scape-inputs').filter({ hasText: /1\d\d 步 \/ 分 → 脉冲跟着走/ }).waitFor({ timeout: 15000 });
+    const why = await V('scape-why').innerText();
+    assert.match(why, /雨声层/);
+    assert.match(why, /有轻柔的脉冲/);
+    await V('res-record').click();
+    audio.push({ t: (Date.now() - t0) / 1000, file: path.join(OUT, 'scape-clip.webm') });
+    await V('scape-inputs').scrollIntoViewIfNeeded();
+    await shot('m3-scape');
+    await pause(2500);
+    await V('scape-why').scrollIntoViewIfNeeded();
+    await pause(2000);
+    await V('res-audio').waitFor({ timeout: 20000 });
+    await V('res-download').scrollIntoViewIfNeeded();
+    const [download] = await Promise.all([page.waitForEvent('download'), V('res-download').click()]);
+    assert.match(download.suggestedFilename(), /^musichere-scape-\d{12}\.(webm|ogg|m4a)$/);
+    await download.saveAs(audio[audio.length - 1].file);
+    await page.evaluate(() => clearInterval(window.__runner));
+    await V('res-stop').click();
+  });
+
   await step('听这里：一句话 + 快捷心情 → AI 场景理解与带理由的推荐', async () => {
     await page.getByTestId('tab-index').click();
     await V('ai-cta').click();
@@ -226,7 +295,7 @@ const FAR = { latitude: 31.24 + 900 / 111195, longitude: 121.49, accuracy: 20 };
     await V('scene-again').waitFor();
   });
 
-  await step('听这里：拍一张照片（浏览器里计算画面明暗冷暖）', async () => {
+  if (!VIDEO_DIR) await step('听这里：拍一张照片（浏览器里计算画面明暗冷暖）', async () => {
     await V('scene-again').click();
     const [chooser] = await Promise.all([page.waitForEvent('filechooser'), V('scene-pick').click()]);
     await chooser.setFiles(SUNSET);
@@ -350,7 +419,7 @@ const FAR = { latitude: 31.24 + 900 / 111195, longitude: 121.49, accuracy: 20 };
     await pause(1000);
   });
 
-  await step('现场 / 常听 / 留言（审核拦截广告）', async () => {
+  if (!VIDEO_DIR) await step('现场 / 常听 / 留言（审核拦截广告）', async () => {
     await scroll(1200);
     await V('tab-live').click();
     await visibleText('江边吉他大叔').waitFor();
@@ -372,7 +441,7 @@ const FAR = { latitude: 31.24 + 900 / 111195, longitude: 121.49, accuracy: 20 };
     await shot('14-comments');
   });
 
-  await step('地点页明信片：保存为图片（PNG）', async () => {
+  if (!VIDEO_DIR) await step('地点页明信片：保存为图片（PNG）', async () => {
     await scroll(-3000);
     await V('postcard-open').click();
     await V('postcard-line').filter({ hasNotText: '正在为这里写' }).waitFor();
@@ -385,7 +454,7 @@ const FAR = { latitude: 31.24 + 900 / 111195, longitude: 121.49, accuracy: 20 };
     await page.getByRole('button', { name: '关闭' }).filter({ visible: true }).first().click();
   });
 
-  await step('分享：新地点 + 照片 + 帮我写 + 现场歌曲', async () => {
+  if (!VIDEO_DIR) await step('分享：新地点 + 照片 + 帮我写 + 现场歌曲', async () => {
     await page.goto(new URL('/add', WEB_URL).toString());
     await V('submit-song').waitFor();
     await V('new-place').click();
