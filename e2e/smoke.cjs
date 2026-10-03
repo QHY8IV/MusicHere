@@ -2,14 +2,15 @@
  * 端到端冒烟测试：用无头 Chromium 打开 app 的 web 版，模拟手机尺寸和 GPS 定位，
  * 对着真实后端走一遍核心流程：
  *   登录 → 此刻（推荐理由 / 换一首 / 点赞）→ 听这里（一句话 & 照片，AI 场景理解，留下 AI 推荐）
- *   → 声景雷达 → 地点（AI 声音画像、打卡捡漂流瓶、投漂流瓶、现场、留言与审核、明信片）
- *   → 分享（新地点 + 照片 + 帮我写）→ 我的（足迹、漂流瓶）→ 离开现场 → 无定位时用示例位置
+ *   → 声景雷达 → 地点（AI 声音画像、打卡捡漂流瓶、此地知音猜歌、投漂流瓶、现场、留言与审核、明信片）
+ *   → 分享（新地点 + 照片 + 帮我写）→ 我的（唱片架、漂流瓶）→ 离开现场 → 无定位时用示例位置
  *
  * 前置：后端运行在 :3000，并已用 `npm run seed -- --lat 31.24 --lng 121.49` 生成示例数据（全新数据库）；
  *       web 版（EXPO_PUBLIC_DEMO_LOCATION=31.24,121.49）已导出并由静态服务器托管在 WEB_URL（默认 :8081）。
  * 每次运行都会写入数据，重跑前请重置数据库。
  *
- * 环境变量：WEB_URL、CHROMIUM_PATH、E2E_OUT（截图目录）、VIDEO_DIR（设置后放慢节奏并录制演示视频）
+ * 环境变量：WEB_URL、CHROMIUM_PATH、E2E_OUT（截图目录）、VIDEO_DIR（设置后放慢节奏并录制演示视频）、
+ *           E2E_DB（后端数据库路径；设置后「此地知音」按剧本作答——除第 2 题外全答对，否则全选 A）
  */
 const { chromium } = require('playwright');
 const assert = require('node:assert/strict');
@@ -95,6 +96,7 @@ const FAR = { latitude: 31.24 + 900 / 111195, longitude: 121.49, accuracy: 20 };
     assert.equal(await V('current-place').innerText(), '江边步道');
     await V('bottle-teaser').waitFor();
     assert.match(await V('bottle-teaser').innerText(), /3 个漂流瓶/);
+    await V('go-quiz').waitFor();
     await V('now-reason').waitFor();
     assert.ok((await V('now-reason').innerText()).length > 4, '推荐理由不应为空');
     await page.waitForTimeout(600);
@@ -148,9 +150,11 @@ const FAR = { latitude: 31.24 + 900 / 111195, longitude: 121.49, accuracy: 20 };
     await shot('07-postcard');
     await pause(1500);
     await page.keyboard.press('Escape');
-    await page.waitForTimeout(300);
+    await page.waitForTimeout(500);
+    // 弹层可能正在淡出：还在就点关闭，已经消失就算了
     const close = page.getByRole('button', { name: '关闭' }).filter({ visible: true });
-    if (await close.count()) await close.first().click();
+    if (await close.count()) await close.first().click({ timeout: 3000 }).catch(() => {});
+    await V('scene-again').waitFor();
   });
 
   await step('听这里：拍一张照片（浏览器里计算画面明暗冷暖）', async () => {
@@ -210,6 +214,54 @@ const FAR = { latitude: 31.24 + 900 / 111195, longitude: 121.49, accuracy: 20 };
     assert.match(txt, /常听/);
     assert.match(txt, /现场/);
     assert.match(txt, /《海阔天空》/);
+  });
+
+  await step('此地知音：AI 出谜猜歌、逐题揭晓冷知识、现场加成、知音榜', async () => {
+    await V('quiz-card').scrollIntoViewIfNeeded();
+    await pause(1200);
+    const started = page.waitForResponse((r) => r.url().includes('/quiz') && r.request().method() === 'POST');
+    await V('quiz-start').click();
+    const { quiz } = await (await started).json();
+    assert.equal(quiz.rounds.length, 5);
+    assert.equal(quiz.onSite, true);
+    let answers = null;
+    if (process.env.E2E_DB) {
+      const { DatabaseSync } = require('node:sqlite');
+      const db = new DatabaseSync(process.env.E2E_DB, { readOnly: true });
+      answers = JSON.parse(db.prepare('SELECT rounds FROM quizzes WHERE id = ?').get(quiz.id).rounds).map((r) => r.answer);
+      db.close();
+    }
+    for (let i = 0; i < 5; i++) {
+      await V('quiz-prompt').waitFor();
+      assert.equal(await V('quiz-prompt').innerText(), quiz.rounds[i].prompt);
+      if (quiz.rounds[i].type === 'emoji') {
+        await V('quiz-clue').waitFor();
+        await page.waitForTimeout(600); // 等弹层滑入完成
+        await shot('q1-quiz-emoji');
+      }
+      await pause(1400);
+      const choice = answers ? (i === 1 ? (answers[i] + 1) % 4 : answers[i]) : 0;
+      await V(`quiz-option-${choice}`).click();
+      await V('quiz-reveal').waitFor();
+      assert.ok((await V('quiz-fact').innerText()).length > 6, '揭晓时要有这里的冷知识');
+      if (i === 0) {
+        await page.waitForTimeout(700); // 等揭晓卡片的动画
+        await shot('q2-quiz-reveal');
+      }
+      if (i === 1 && answers) assert.match(await V('quiz-reveal').innerText(), /差一点/);
+      await pause(1600);
+      await V('quiz-next').click();
+    }
+    await V('quiz-result').waitFor();
+    const title = await V('quiz-title').innerText();
+    assert.match(title, /此地知音|老熟人|过客|初来乍到/);
+    if (answers) assert.equal(title, '老熟人');
+    await V('quiz-board').getByText('测试员').waitFor();
+    await page.waitForTimeout(600);
+    await shot('q3-quiz-result');
+    await pause(2200);
+    await V('quiz-done').click();
+    await V('quiz-card').getByText(/你的最好成绩/).waitFor();
   });
 
   await step('投漂流瓶：帮我写一句 + 投放', async () => {
@@ -296,10 +348,17 @@ const FAR = { latitude: 31.24 + 900 / 111195, longitude: 121.49, accuracy: 20 };
     await visibleText('地铁口歌手').waitFor();
   });
 
-  await step('我的：足迹与漂流瓶', async () => {
+  await step('我的：唱片架、足迹与漂流瓶', async () => {
     await page.goto(new URL('/me', WEB_URL).toString());
     await V('nickname-display').waitFor();
     assert.equal(await V('nickname-display').innerText(), '测试员');
+    await V('record-item').first().waitFor();
+    assert.match(await V('record-item').first().innerText(), /江边步道[\s\S]*老熟人|江边步道[\s\S]*\d+/);
+    await scroll(400);
+    await shot('q4-me-records');
+    await pause(1500);
+    await scroll(-400);
+    await V('me-trail').click();
     await visibleText('江边步道').waitFor();
     await V('me-bottles').click();
     await V('bottle-letter').first().waitFor();

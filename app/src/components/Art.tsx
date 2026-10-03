@@ -1,7 +1,7 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import { useEffect, useRef } from 'react';
 import { Animated, Easing, StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
-import { artPalette } from '../lib/theme';
+import { artPalette, colors, moodColor } from '../lib/theme';
 import { NATIVE_DRIVER } from './ui';
 
 /** 首字：中文取第一个字，英文取首字母。 */
@@ -92,6 +92,53 @@ export function Vinyl({
       />
       <Artwork title={title} artist={artist} size={label} rounded={label / 2} />
       <View style={[styles.hole, { width: size * 0.05, height: size * 0.05, borderRadius: size * 0.025 }]} />
+    </Animated.View>
+  );
+}
+
+/**
+ * 地点唱片：唱片架上的一张。中心贴纸的颜色来自那里的情绪（例如「夜色」紫 → 「热血」红）。
+ */
+export function PlaceRecord({
+  name,
+  moods,
+  size = 120,
+  spinning = false,
+}: {
+  name: string;
+  moods: string[];
+  size?: number;
+  spinning?: boolean;
+}) {
+  const spin = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    if (!spinning) return;
+    const loop = Animated.loop(
+      Animated.timing(spin, { toValue: 1, duration: 6000, easing: Easing.linear, useNativeDriver: NATIVE_DRIVER }),
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [spin, spinning]);
+  const rotate = spin.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '360deg'] });
+  const a = moodColor[moods[0] ?? ''] ?? colors.violet;
+  const b = moodColor[moods[1] ?? ''] ?? colors.mint;
+  const label = size * 0.46;
+  return (
+    <Animated.View style={[styles.disc, { width: size, height: size, borderRadius: size / 2, transform: [{ rotate }] }]}>
+      {[0.95, 0.85, 0.75, 0.65, 0.56].map((k) => (
+        <View key={k} style={[styles.groove, { width: size * k, height: size * k, borderRadius: (size * k) / 2 }]} />
+      ))}
+      <LinearGradient
+        colors={['rgba(255,255,255,0.16)', 'rgba(255,255,255,0)', 'rgba(255,255,255,0.08)', 'rgba(255,255,255,0)']}
+        locations={[0, 0.3, 0.62, 1]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={[StyleSheet.absoluteFill, { borderRadius: size / 2 }]}
+      />
+      <View style={{ width: label, height: label, borderRadius: label / 2, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' }}>
+        <LinearGradient colors={[a, b]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
+        <Text style={{ color: 'rgba(7,8,12,0.82)', fontWeight: '900', fontSize: label * 0.38 }}>{glyph(name)}</Text>
+      </View>
     </Animated.View>
   );
 }

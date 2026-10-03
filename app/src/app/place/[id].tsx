@@ -10,6 +10,7 @@ import { CoverButtons } from '../../components/CoverButtons';
 import { PersonaCard } from '../../components/PersonaCard';
 import { PlaceCover } from '../../components/PlaceCover';
 import { PostcardSheet, type PostcardData } from '../../components/Postcard';
+import { QuizCard, QuizGame } from '../../components/Quiz';
 import { SongRow } from '../../components/SongRow';
 import {
   Button,
@@ -47,7 +48,7 @@ const KINDS: Kind[] = ['vibe', 'frequent', 'live'];
 const TAB_TITLE: Record<Kind, string> = { vibe: '觉得很应景的歌', frequent: '这里常听的歌', live: '在这里听到过的现场' };
 
 export default function PlaceScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id, play } = useLocalSearchParams<{ id: string; play?: string }>();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const toast = useToast();
@@ -60,6 +61,7 @@ export default function PlaceScreen() {
   const comments = useAsync(() => api.comments(id), [id]);
   const persona = useAsync(() => api.persona(id), [id]);
   const waiting = useAsync(() => api.waitingBottles(id), [id]);
+  const board = useAsync(() => api.quizBoard(id), [id]);
 
   const [tab, setTab] = useState<Tab>('vibe');
   const [checkingIn, setCheckingIn] = useState(false);
@@ -68,6 +70,8 @@ export default function PlaceScreen() {
   const [throwing, setThrowing] = useState(false);
   const [postcard, setPostcard] = useState<PostcardData | null>(null);
   const [coverBusy, setCoverBusy] = useState(false);
+  // 从首页「猜歌」进来时直接开一局
+  const [playing, setPlaying] = useState(play === '1');
 
   const grouped = useMemo(() => {
     const g: Record<Kind, PlaceSong[]> = { vibe: [], frequent: [], live: [] };
@@ -214,6 +218,9 @@ export default function PlaceScreen() {
             <Button label="声音明信片" icon="image" variant="subtle" onPress={openPostcard} style={{ flex: 1 }} testID="postcard-open" />
           </View>
 
+          {/* 此地知音：猜歌小游戏 */}
+          <QuizCard placeName={p.name} board={board.data} inRange={inRange} onStart={() => setPlaying(true)} />
+
           {/* AI 声音画像 */}
           {persona.data ? <PersonaCard persona={persona.data.persona} /> : <Loading label="AI 正在描绘这里的声音…" />}
 
@@ -283,6 +290,13 @@ export default function PlaceScreen() {
         onThrown={() => void waiting.reload()}
       />
       <PostcardSheet data={postcard} onClose={() => setPostcard(null)} />
+      <QuizGame
+        visible={playing}
+        placeId={p.id}
+        coords={coords}
+        onClose={() => setPlaying(false)}
+        onFinished={() => void board.reload()}
+      />
     </View>
   );
 }

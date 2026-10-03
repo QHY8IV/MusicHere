@@ -30,11 +30,12 @@ const CAPTIONS = [
   ['声景雷达', '声景雷达', '附近哪里有歌，按真实方位和距离一目了然', false],
   ['地点：AI', '地点的「声音画像」', '情绪构成 × 24 小时热度 × 常被留下的艺人 —— 统计是真实的，措辞交给 AI', true],
   ['打卡', '到了现场，才能打开', '打卡后看到应景 / 常听 / 现场三类歌，并捡起陌生人留下的漂流瓶', false],
+  ['此地知音', '此地知音：猜猜这里在听什么', 'AI 用 emoji 出谜；题目全部来自这里真实留下的歌、现场和留言。在现场答题 ×1.2，冲上知音榜', true],
   ['投漂流瓶', '声音漂流瓶', '把一首歌和一句话，留给下一个路过这里的人', true],
   ['现场', '街头艺人、即兴、演唱会都被记住', '「我也在听」累计常听热度；AI 审核拦下引流广告', true],
   ['地点页明信片', '声音明信片', '地点 × 一首歌 × AI 写的一句，一键保存分享，带来新用户', true],
   ['分享', '分享一首歌', '新建地点、配上照片，AI 帮你写下「为什么是这首」', true],
-  ['我的', '足迹与漂流瓶', '你的瓶子被谁、在几天后捡起，都看得见', false],
+  ['我的', '唱片架：去过的地方都收进来', '每个地点一张唱片，贴纸颜色是那里的情绪；还有足迹和漂流瓶', false],
   ['离开现场', '位置是唯一的钥匙', '离开现场就无法打卡与投瓶 —— 内容真实，也防刷量', false],
 ];
 
@@ -75,10 +76,10 @@ async function main() {
   await render(
     'intro.png',
     `<div class="cap" style="left:160px">
-      <div class="num">MUSICHERE</div>
+      <div class="num">BUILD WITH AI · 腾讯音乐首届高校 AI HACKATHON</div>
       <h1 style="font-size:120px">此地有歌</h1>
       <p style="font-size:44px;color:#F4F5F7">每个地方，都有它的背景音乐</p>
-      <p>AI × 位置 × 人群记忆 —— 拍一下，听见这里</p>
+      <p>AI × 位置 × 人群记忆 —— 让音乐在城市里玩起来</p>
     </div>`,
   );
   const list = [];
@@ -109,8 +110,8 @@ async function main() {
     `<div class="cap" style="left:160px">
       <div class="num">此地有歌 · MUSICHERE</div>
       <h1 style="max-width:1600px">让每个地方都有自己的 BGM<br/>让每首歌都有自己的坐标</h1>
-      <p style="max-width:1600px">✦ AI 读懂此刻　✦ AI 声音画像　✦ AI 补位冷启动　✦ AI 内容审核<br/>
-      声音漂流瓶　·　声音明信片　·　一键跳转 QQ 音乐　·　现场演出记录</p>
+      <p style="max-width:1600px">✦ AI 读懂此刻　✦ AI 出谜猜歌　✦ AI 声音画像　✦ AI 补位冷启动　✦ AI 内容审核<br/>
+      此地知音 · 声音漂流瓶 · 唱片架 · 声音明信片 · 一键跳转 QQ 音乐</p>
     </div>`,
   );
   list.push({ file: 'outro.png', d: OUTRO });

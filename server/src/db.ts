@@ -123,6 +123,23 @@ CREATE TABLE IF NOT EXISTS bottles (
 CREATE INDEX IF NOT EXISTS idx_bottles_place ON bottles(place_id, picked_by, created_at);
 CREATE INDEX IF NOT EXISTS idx_bottles_user ON bottles(user_id);
 
+-- 「此地知音」猜歌：题目与答案只存在服务端，逐题作答
+CREATE TABLE IF NOT EXISTS quizzes (
+  id           TEXT PRIMARY KEY,
+  user_id      TEXT NOT NULL REFERENCES users(id),
+  place_id     TEXT NOT NULL REFERENCES places(id) ON DELETE CASCADE,
+  rounds       TEXT NOT NULL,
+  answers      TEXT NOT NULL DEFAULT '[]',
+  on_site      INTEGER NOT NULL DEFAULT 0,
+  score        INTEGER NOT NULL DEFAULT 0,
+  correct      INTEGER NOT NULL DEFAULT 0,
+  created_at   TEXT NOT NULL,
+  last_at      TEXT NOT NULL,
+  finished_at  TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_quizzes_place ON quizzes(place_id, finished_at);
+CREATE INDEX IF NOT EXISTS idx_quizzes_user ON quizzes(user_id, place_id);
+
 CREATE TABLE IF NOT EXISTS comment_likes (
   comment_id  TEXT NOT NULL REFERENCES comments(id) ON DELETE CASCADE,
   user_id     TEXT NOT NULL REFERENCES users(id),

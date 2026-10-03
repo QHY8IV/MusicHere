@@ -2,6 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { PlaceRecord } from '../../components/Art';
 import { BottleLetter } from '../../components/Bottle';
 import { Avatar } from '../../components/CommentItem';
 import { SongRow } from '../../components/SongRow';
@@ -13,7 +14,7 @@ import { timeAgo } from '../../lib/format';
 import { colors, radius } from '../../lib/theme';
 import { useAsync } from '../../lib/useAsync';
 
-type Tab = 'trail' | 'bottles' | 'songs';
+type Tab = 'records' | 'trail' | 'bottles' | 'songs';
 
 export default function MeTab() {
   const router = useRouter();
@@ -24,12 +25,13 @@ export default function MeTab() {
   const songs = useAsync(() => api.mySongs(), []);
   const bottles = useAsync(() => api.myBottles(), []);
   const engine = useAsync(() => api.aiStatus(), []);
-  const [tab, setTab] = useState<Tab>('trail');
+  const records = useAsync(() => api.myRecords(), []);
+  const [tab, setTab] = useState<Tab>('records');
   const [name, setName] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
   const reloadAll = async () => {
-    await Promise.all([me.reload(), checkins.reload(), songs.reload(), bottles.reload()]);
+    await Promise.all([me.reload(), checkins.reload(), songs.reload(), bottles.reload(), records.reload()]);
   };
 
   if (!me.data) {
@@ -94,13 +96,39 @@ export default function MeTab() {
         value={tab}
         onChange={setTab}
         options={[
+          { key: 'records', label: '唱片架', count: records.data?.records.length, testID: 'me-records' },
           { key: 'trail', label: '足迹', count: checkins.data?.checkins.length, testID: 'me-trail' },
           { key: 'bottles', label: '漂流瓶', count: (bottles.data?.thrown.length ?? 0) + (bottles.data?.picked.length ?? 0), testID: 'me-bottles' },
           { key: 'songs', label: '我的分享', count: songs.data?.songs.length, testID: 'me-songs' },
         ]}
       />
 
-      {tab === 'trail' ? (
+      {tab === 'records' ? (
+        !records.data ? (
+          <Loading />
+        ) : records.data.records.length === 0 ? (
+          <EmptyState icon="disc-outline" title="唱片架还是空的" message="去一个地点打卡，或者玩一局「此地知音」，就能收下那里的唱片。" />
+        ) : (
+          <View style={{ gap: 12 }}>
+            <Txt v="sub">每去过一个地方，就收下一张它的唱片。贴纸的颜色是那里的情绪。</Txt>
+            <View style={styles.shelf}>
+              {records.data.records.map((r) => (
+                <Pressable key={r.placeId} onPress={() => router.push(`/place/${r.placeId}`)} style={styles.record} testID="record-item">
+                  <PlaceRecord name={r.placeName} moods={r.moods} size={112} />
+                  <Text style={styles.recordName} numberOfLines={1}>
+                    {r.placeName}
+                  </Text>
+                  <Text style={styles.recordMeta} numberOfLines={1}>
+                    {r.moods.slice(0, 2).join(' · ') || '还没有情绪'}
+                    {r.visits ? ` · 来过 ${r.visits} 次` : ''}
+                  </Text>
+                  {r.best ? <Pill label={`${r.best.title} · ${r.best.score}`} icon="trophy" color={colors.gold} /> : null}
+                </Pressable>
+              ))}
+            </View>
+          </View>
+        )
+      ) : tab === 'trail' ? (
         !checkins.data ? (
           <Loading />
         ) : checkins.data.checkins.length === 0 ? (
@@ -233,4 +261,19 @@ const styles = StyleSheet.create({
   tlTime: { color: colors.faint, fontSize: 12, marginTop: 2 },
   bottlePlace: { color: colors.text, fontSize: 15, fontWeight: '800' },
   infoRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  shelf: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
+  record: {
+    width: '47%',
+    flexGrow: 1,
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: 16,
+    paddingHorizontal: 10,
+    borderRadius: radius.xl,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.line,
+  },
+  recordName: { color: colors.text, fontSize: 15, fontWeight: '800', marginTop: 4 },
+  recordMeta: { color: colors.sub, fontSize: 12 },
 });

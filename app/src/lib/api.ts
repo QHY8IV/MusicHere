@@ -350,7 +350,81 @@ export const api = {
     request<{ bottle: Bottle }>('POST', `/places/${placeId}/bottles`, input),
   waitingBottles: (placeId: string) => request<{ count: number }>('GET', `/places/${placeId}/bottles/waiting`),
   myBottles: () => request<{ thrown: Bottle[]; picked: Bottle[] }>('GET', '/me/bottles'),
+
+  startQuiz: (placeId: string, at?: Pos) => request<{ quiz: Quiz }>('POST', `/places/${placeId}/quiz`, at ?? {}),
+  answerQuiz: (quizId: string, round: number, choice: number) =>
+    request<QuizAnswer>('POST', `/quizzes/${quizId}/answer`, { round, choice }),
+  quizBoard: (placeId: string) => request<QuizBoard>('GET', `/places/${placeId}/quiz/board`),
+  myRecords: () => request<{ records: RecordItem[] }>('GET', '/me/records'),
 };
+
+// ---- 此地知音 ----
+export type QuizRoundType = 'emoji' | 'top' | 'live' | 'artist' | 'peak' | 'mood' | 'comment';
+
+export interface QuizRound {
+  type: QuizRoundType;
+  prompt: string;
+  clue: string | null;
+  hint: string | null;
+  options: { label: string; sub: string | null }[];
+}
+
+export interface Quiz {
+  id: string;
+  placeId: string;
+  placeName: string;
+  onSite: boolean;
+  engine: Engine;
+  rounds: QuizRound[];
+}
+
+export interface QuizResult {
+  score: number;
+  correct: number;
+  total: number;
+  title: string;
+  onSite: boolean;
+  best: number;
+  isBest: boolean;
+  rank: number | null;
+}
+
+export interface QuizAnswer {
+  correct: boolean;
+  answer: number;
+  fact: string;
+  points: number;
+  score: number;
+  streak: number;
+  finished: boolean;
+  result: QuizResult | null;
+}
+
+export interface BoardEntry {
+  rank: number;
+  user: { id: string; nickname: string };
+  score: number;
+  correct: number;
+  total: number;
+  title: string;
+  onSite: boolean;
+}
+
+export interface QuizBoard {
+  board: BoardEntry[];
+  me: BoardEntry | null;
+  players: number;
+}
+
+export interface RecordItem {
+  placeId: string;
+  placeName: string;
+  imageUrl: string | null;
+  moods: string[];
+  visits: number;
+  firstAt: string;
+  best: { score: number; title: string } | null;
+}
 
 /**
  * 去 QQ 音乐听：有用户贴的链接就用它，否则跳 QQ 音乐搜索页（装了 App 的手机会由系统接管）。

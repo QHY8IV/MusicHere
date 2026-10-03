@@ -153,7 +153,14 @@ function Now({ coords }: { coords: Coords }) {
           </PlaceCover>
           </Pressable>
           <View style={styles.heroBar}>
-            <Button label="打卡，听这里的歌" icon="flag" onPress={() => router.push(`/place/${here.id}`)} testID="go-checkin" />
+            <Button label="打卡，听这里的歌" icon="flag" onPress={() => router.push(`/place/${here.id}`)} testID="go-checkin" style={{ flex: 1 }} />
+            <Button
+              label="猜歌"
+              icon="game-controller"
+              variant="aurora"
+              onPress={() => router.push({ pathname: '/place/[id]', params: { id: here.id, play: '1' } })}
+              testID="go-quiz"
+            />
           </View>
         </View>
       ) : (
@@ -244,7 +251,7 @@ const styles = StyleSheet.create({
   heroLabel: { color: colors.lime, fontSize: 11, fontWeight: '900', letterSpacing: 2 },
   heroName: { color: '#fff', fontSize: 34, fontWeight: '900', letterSpacing: -0.5 },
   heroSummary: { color: 'rgba(255,255,255,0.86)', fontSize: 14, lineHeight: 21 },
-  heroBar: { padding: 14 },
+  heroBar: { padding: 14, flexDirection: 'row', gap: 10 },
   wrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
   emptyHero: {
     borderRadius: radius.xl,

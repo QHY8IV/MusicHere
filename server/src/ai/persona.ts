@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { rows, type Deps } from '../http.ts';
 import { getPlaceRow } from '../services/places.ts';
-import { listPlaceSongs } from '../services/placeSongs.ts';
+import { listPlaceSongs, type PlaceSongDto } from '../services/placeSongs.ts';
 import { LlmError } from './llm.ts';
 import type { Mood } from './moods.ts';
 import { songMoods } from './tags.ts';
@@ -37,19 +37,7 @@ const llmPersonaSchema = z.object({
 export async function placePersona(deps: Deps, placeId: string): Promise<Persona> {
   const place = getPlaceRow(deps, placeId);
   const songs = listPlaceSongs(deps, { placeId, userId: null });
-  const moodsBySong = songMoods(deps, [...new Set(songs.map((s) => s.song.id))]);
-
-  // 情绪构成：按每条记录的推荐权重加权
-  const moodScore = new Map<Mood, number>();
-  for (const s of songs) {
-    const ms = moodsBySong.get(s.song.id) ?? [];
-    ms.forEach((m, i) => moodScore.set(m, (moodScore.get(m) ?? 0) + s.weight * (i === 0 ? 1 : 0.6)));
-  }
-  const totalMood = [...moodScore.values()].reduce((a, b) => a + b, 0) || 1;
-  const moods = [...moodScore.entries()]
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 4)
-    .map(([mood, v]) => ({ mood, share: Math.round((v / totalMood) * 100) / 100 }));
+  const moods = moodShares(deps, songs);
 
   // 活跃时段
   const events = rows<{ at: string }>(
@@ -125,6 +113,21 @@ export async function placePersona(deps: Deps, placeId: string): Promise<Persona
 
   perPlace.set(placeId, { sig, persona });
   return persona;
+}
+
+/** 情绪构成：按每条记录的推荐权重加权，取前 n 个。 */
+export function moodShares(deps: Deps, songs: PlaceSongDto[], n = 4): { mood: Mood; share: number }[] {
+  const moodsBySong = songMoods(deps, [...new Set(songs.map((s) => s.song.id))]);
+  const moodScore = new Map<Mood, number>();
+  for (const s of songs) {
+    const ms = moodsBySong.get(s.song.id) ?? [];
+    ms.forEach((m, i) => moodScore.set(m, (moodScore.get(m) ?? 0) + s.weight * (i === 0 ? 1 : 0.6)));
+  }
+  const totalMood = [...moodScore.values()].reduce((a, b) => a + b, 0) || 1;
+  return [...moodScore.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, n)
+    .map(([mood, v]) => ({ mood, share: Math.round((v / totalMood) * 100) / 100 }));
 }
 
 function rulesWording(

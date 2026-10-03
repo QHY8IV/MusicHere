@@ -13,6 +13,7 @@ import { localHour } from './ai/time.ts';
 import { openDb, transaction } from './db.ts';
 import { row, type Deps } from './http.ts';
 import { pickBottle, throwBottle } from './services/bottles.ts';
+import { answerQuiz, startQuiz } from './services/quiz.ts';
 import { addComment } from './services/comments.ts';
 import { UPLOAD_PREFIX } from './services/images.ts';
 import { checkIn, createPlace, type Category } from './services/places.ts';
@@ -39,7 +40,11 @@ const db = openDb(process.env.DB_PATH ?? 'musichere.db');
 const deps: Deps = {
   db,
   now: () => new Date(clock),
-  rng: Math.random,
+  rng: (() => {
+    // 独立的固定种子：出题洗牌用，不打乱下面 rand() 的序列
+    let s = 7;
+    return () => ((s = (s * 1103515245 + 12345) % 2147483648) / 2147483648);
+  })(),
   adminKey: null,
   uploadDir: process.env.UPLOAD_DIR ?? 'uploads',
   llm: null,
@@ -210,9 +215,11 @@ if (exists) {
   process.exit(0);
 }
 
+const created: { id: string; coords: { lat: number; lng: number } }[] = [];
+let users: { id: string }[] = [];
 transaction(db, () => {
   clock = realNow - 30 * 86_400_000;
-  const users = NAMES.map((nickname) => createGuest(deps, nickname).user);
+  users = NAMES.map((nickname) => createGuest(deps, nickname).user);
 
   for (const spot of spots) {
     const coords = at(...spot.offset);
@@ -223,6 +230,7 @@ transaction(db, () => {
       category: spot.category,
       ...coords,
     });
+    created.push({ id: place.id, coords });
 
     // 封面
     const file = `seed-${spot.image}.jpg`;
@@ -255,10 +263,11 @@ transaction(db, () => {
       }
     }
 
-    for (const c of spot.comments ?? []) {
+    (spot.comments ?? []).forEach((c, i) => {
       clock = localTime(c.daysAgo, pick(spot.peaks), Math.floor(rand() * 60));
-      addComment(deps, users[c.by]!.id, place.id, { body: c.body, mood: c.mood });
-    }
+      // 第一条留言关联这里分享的第一首歌（「此地知音」会拿它出题）
+      addComment(deps, users[c.by]!.id, place.id, { body: c.body, mood: c.mood, placeSongId: i === 0 ? psIds[0]?.id : undefined });
+    });
 
     // 漂流瓶：投放（必须在现场 → 用地点坐标），部分已被捡起
     for (const b of spot.bottles ?? []) {
@@ -271,6 +280,23 @@ transaction(db, () => {
     }
   }
 });
+
+// 此地知音：每个地点有几位老用户玩过，知音榜上有人
+for (const [pi, { id, coords }] of created.entries()) {
+  const players = [1, 2, 3, 4, 5, 6, 7].filter((_, i) => (i + pi) % 3 !== 0).slice(0, 4);
+  for (const [k, ui] of players.entries()) {
+    clock = localTime(1 + k, 19, 10 * k);
+    const onSite = k % 2 === 0;
+    const quiz = await startQuiz(deps, users[ui]!.id, id, onSite ? coords : {});
+    const { rounds } = row<{ rounds: string }>(db.prepare('SELECT rounds FROM quizzes WHERE id = ?').get(quiz.id))!;
+    const answers = (JSON.parse(rounds) as { answer: number }[]).map((r) => r.answer);
+    const skill = [0.95, 0.75, 0.6, 0.45][k]!;
+    answers.forEach((right, i) => {
+      clock += 2000 + Math.floor(rand() * 10_000);
+      answerQuiz(deps, users[ui]!.id, quiz.id, i, rand() < skill ? right : (right + 1) % 4);
+    });
+  }
+}
 
 console.log(`已在 (${center.lat}, ${center.lng}) 周围生成 ${spots.length} 个示例地点、${NAMES.length} 位用户和三周的活动记录`);
 db.close();

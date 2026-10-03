@@ -31,6 +31,7 @@ import { placePersona } from '../ai/persona.ts';
 import { analyzeScene } from '../ai/scene.ts';
 import { myBottles, pickBottle, throwBottle, waitingBottles } from '../services/bottles.ts';
 import { discover } from '../services/discover.ts';
+import { answerQuiz, leaderboard, myRecords, startQuiz } from '../services/quiz.ts';
 import { removeUploaded, saveImage, sniffImage } from '../services/images.ts';
 import { KINDS } from '../services/placeSongs.ts';
 import {
@@ -274,6 +275,33 @@ export function privateRoutes(deps: Deps) {
     app.get('/me/bottles', async (req) => {
       const user = requireUser(req);
       return myBottles(deps, user.id);
+    });
+
+    // ---- 此地知音：猜歌小游戏 ----
+    app.post('/places/:id/quiz', async (req, reply) => {
+      const user = requireUser(req);
+      const { id } = parse(idParam, req.params);
+      const body = parse(z.object({ lat: lat.optional(), lng: lng.optional() }), req.body ?? {});
+      reply.code(201);
+      return { quiz: await startQuiz(deps, user.id, id, body) };
+    });
+
+    app.post('/quizzes/:id/answer', async (req) => {
+      const user = requireUser(req);
+      const { id } = parse(idParam, req.params);
+      const body = parse(z.object({ round: z.number().int().min(0).max(20), choice: z.number().int().min(0).max(10) }), req.body);
+      return answerQuiz(deps, user.id, id, body.round, body.choice);
+    });
+
+    app.get('/places/:id/quiz/board', async (req) => {
+      const user = requireUser(req);
+      const { id } = parse(idParam, req.params);
+      return leaderboard(deps, id, user.id);
+    });
+
+    app.get('/me/records', async (req) => {
+      const user = requireUser(req);
+      return { records: myRecords(deps, user.id) };
     });
 
     // ---- 评论 ----

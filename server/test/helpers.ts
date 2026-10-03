@@ -6,7 +6,7 @@ import type { AddressInfo } from 'node:net';
 import type { FastifyInstance } from 'fastify';
 import { createLlm, type Llm } from '../src/ai/llm.ts';
 import { buildApp } from '../src/app.ts';
-import { openDb } from '../src/db.ts';
+import { openDb, type Db } from '../src/db.ts';
 
 /** 一个可手动拨动的时钟。 */
 export class Clock {
@@ -45,6 +45,7 @@ export const northOf = (p: { lat: number; lng: number }, meters: number) => ({
 
 export interface TestEnv {
   app: FastifyInstance;
+  db: Db;
   clock: Clock;
   adminKey: string;
   uploadDir: string;
@@ -114,6 +115,7 @@ export async function setup(
 
   return {
     app,
+    db,
     clock,
     adminKey: adminKey ?? '',
     uploadDir,
