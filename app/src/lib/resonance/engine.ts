@@ -105,13 +105,22 @@ export class ResonanceEngine {
     this.tone.connect(this.verb).connect(this.wet).connect(comp);
     comp.connect(this.duckGain).connect(this.master).connect(ctx.destination);
 
-    // 录制支路：音乐按「实际听到的时刻」延后，与麦克风里的环境声对齐
+    // 录制支路：音乐按「实际听到的时刻」延后，与麦克风里的环境声对齐；两路相加后过限幅器，避免削波
     this.recDest = ctx.createMediaStreamDestination();
+    const recMix = ctx.createGain();
+    recMix.gain.value = 0.8;
+    const limiter = ctx.createDynamicsCompressor();
+    limiter.threshold.value = -8;
+    limiter.knee.value = 2;
+    limiter.ratio.value = 20;
+    limiter.attack.value = 0.002;
+    limiter.release.value = 0.12;
+    recMix.connect(limiter).connect(this.recDest);
     this.recDelay = ctx.createDelay(1);
-    this.master.connect(this.recDelay).connect(this.recDest);
+    this.master.connect(this.recDelay).connect(recMix);
     this.micRec = ctx.createGain();
-    this.micRec.gain.value = 0.9;
-    this.micRec.connect(this.recDest);
+    this.micRec.gain.value = 0.75;
+    this.micRec.connect(recMix);
 
     // 白噪声（鼓组用）
     this.noise = ctx.createBuffer(1, ctx.sampleRate, ctx.sampleRate);

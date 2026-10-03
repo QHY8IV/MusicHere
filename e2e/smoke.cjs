@@ -134,6 +134,9 @@ const FAR = { latitude: 31.24 + 900 / 111195, longitude: 121.49, accuracy: 20 };
     await page.getByTestId('tab-resonance').click();
     await V('res-start').waitFor();
     await V('song-night').click();
+    await page.mouse.move(195, 420);
+    await page.mouse.wheel(0, -3000);
+    await page.waitForTimeout(400);
     await shot('r0-resonance');
     await pause(1500);
     await V('res-start').click();
@@ -148,11 +151,12 @@ const FAR = { latitude: 31.24 + 900 / 111195, longitude: 121.49, accuracy: 20 };
     const key = await V('res-key-status').innerText();
     assert.match(key, /持续的 A 音/);
     assert.match(key, /D 小调/, '夜行（E 小调）应移到以 A 为属音的 D 小调');
-    // 相位收敛到 20 ms 以内
+    // 速度追上环境、相位收敛到 20 ms 以内
     await page.waitForFunction(() => {
-      const el = [...document.querySelectorAll('[data-testid=res-readout]')].find((e) => e.offsetParent);
-      const m = el && el.innerText.match(/相位差 (\d+) ms/);
-      return m && Number(m[1]) <= 20;
+      const vis = (id) => [...document.querySelectorAll(`[data-testid=${id}]`)].find((e) => e.offsetParent);
+      const ph = vis('res-readout')?.innerText.match(/相位差 (\d+) ms/);
+      const bpm = vis('res-beat-status')?.innerText.match(/环境 ([\d.]+) BPM → 歌曲 (\d+) BPM/);
+      return ph && Number(ph[1]) <= 20 && bpm && Math.abs(Number(bpm[1]) - Number(bpm[2])) <= 1.5;
     }, null, { timeout: 15000 });
     await shot('r1-locked');
     await V('res-audio').waitFor({ timeout: 20000 });

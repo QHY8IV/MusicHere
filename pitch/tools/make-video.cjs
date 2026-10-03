@@ -1,6 +1,7 @@
 /**
  * 把 e2e 录下的手机画面合成为 1920×1080 的演示视频：左侧是每一步的大字幕，右侧是手机画面，
  * 前后各有一张标题卡。字幕用 Chromium 渲染成图片（中文字体齐全），再用 ffmpeg 合成 H.264 MP4。
+ * timeline.json 里的 audio（App 自己录下的「共鸣片段」：街头环境声 + 对拍后的音乐）按录制开始的时刻混进音轨。
  *
  *   VIDEO_DIR=... node e2e/smoke.cjs          # 先录屏，得到 webm + timeline.json
  *   FFMPEG=/path/to/ffmpeg node pitch/tools/make-video.cjs <VIDEO_DIR> <输出.mp4>
@@ -12,7 +13,7 @@ const { execFileSync } = require('node:child_process');
 
 const [videoDir, outFile] = process.argv.slice(2);
 const FFMPEG = process.env.FFMPEG || 'ffmpeg';
-const { video, timeline } = JSON.parse(fs.readFileSync(path.join(videoDir, 'timeline.json'), 'utf8'));
+const { video, timeline, audio = [] } = JSON.parse(fs.readFileSync(path.join(videoDir, 'timeline.json'), 'utf8'));
 const work = path.join(videoDir, 'frames');
 fs.mkdirSync(work, { recursive: true });
 
@@ -24,7 +25,10 @@ const CAPTIONS = [
   ['欢迎页', '无需注册，一个昵称就开始', '此地有歌 —— 每个地方，都有它的背景音乐', false],
   ['此刻：识别', '打开就知道你在哪里', '当前地点的 AI 声音画像，和等你拾起的漂流瓶', true],
   ['此刻：换一首', '每一首推荐，都说得出理由', '理由全部来自真实数据：几个人在这里听、什么时段最常被点播、听众的原话', false],
-  ['听这里：一句话', '拍一下 / 说一句，AI 读懂此刻', '光线、色彩、心情 → 情绪标签 → 从这里的人群记忆里挑歌', true],
+  ['共鸣：听见', '共鸣：让世界为你的歌伴奏', '🔊 你听到的是 App 录下的真实片段：街上的脚步（112 BPM）+ 江上的嗡鸣（A）。原创曲《夜行》从 100 BPM 滑到 112，从 E 小调移到以 A 为属音的 D 小调——几秒后，鼓点踩在了脚步上', true],
+  ['共鸣：入景', '入景：AI 看画面调混音', '拍一下眼前：画面的能量、明暗、情绪决定编配密度、音色明暗和大小调，地点类型决定混响空间', true],
+  ['共鸣：留下', '共鸣指纹：城市的节拍地图', '每个地点「听起来」的拍子和调，由在场的人贡献（只存数字，不存声音）；下一个人来，歌一开始就在调上', false],
+  ['听这里：一句话', '听这里：AI 读懂此刻', '光线、色彩、心情 → 情绪标签 → 从这里的人群记忆里挑歌', true],
   ['听这里：把 AI', 'AI 补位，解决冷启动', '新地点还没人分享？AI 先挑，一键留下，你就是第一个', true],
   ['听这里：拍一张', '照片直接交给多模态大模型', '未接入模型时，浏览器本地计算明暗冷暖，规则引擎兜底，功能不中断', true],
   ['声景雷达', '声景雷达', '附近哪里有歌，按真实方位和距离一目了然', false],
@@ -79,7 +83,7 @@ async function main() {
       <div class="num">BUILD WITH AI · 腾讯音乐首届高校 AI HACKATHON</div>
       <h1 style="font-size:120px">此地有歌</h1>
       <p style="font-size:44px;color:#F4F5F7">每个地方，都有它的背景音乐</p>
-      <p>AI × 位置 × 人群记忆 —— 让音乐在城市里玩起来</p>
+      <p>降噪把世界关在外面，通透把世界放进来——<br/>共鸣，让世界成为你这首歌的一部分</p>
     </div>`,
   );
   const list = [];
@@ -109,9 +113,9 @@ async function main() {
     'outro.png',
     `<div class="cap" style="left:160px">
       <div class="num">此地有歌 · MUSICHERE</div>
-      <h1 style="max-width:1600px">让每个地方都有自己的 BGM<br/>让每首歌都有自己的坐标</h1>
-      <p style="max-width:1600px">✦ AI 读懂此刻　✦ AI 出谜猜歌　✦ AI 声音画像　✦ AI 补位冷启动　✦ AI 内容审核<br/>
-      此地知音 · 声音漂流瓶 · 唱片架 · 声音明信片 · 一键跳转 QQ 音乐</p>
+      <h1 style="max-width:1600px">让世界为你的歌伴奏</h1>
+      <p style="max-width:1600px">✦ 对拍：跟上脚步、车轮、街头艺人的节奏　✦ 定调：落在环境的调上　✦ 入景：AI 看画面调混音<br/>
+      共鸣指纹 · 共鸣片段 · AI 读懂此刻 · 声音画像 · 漂流瓶 · 一键跳转 QQ 音乐</p>
     </div>`,
   );
   list.push({ file: 'outro.png', d: OUTRO });
@@ -121,17 +125,27 @@ async function main() {
   fs.writeFileSync(path.join(work, 'bg.txt'), concat);
 
   const total = list.reduce((a, x) => a + x.d, 0);
+  const clips = audio.filter((a) => fs.existsSync(a.file));
+  const audioInputs = clips.flatMap((a) => ['-i', a.file]);
+  const audioFilter = clips.length
+    ? ';' +
+      clips.map((a, i) => `[${i + 2}:a]aresample=48000,adelay=${Math.round((INTRO + a.t) * 1000)}:all=1[a${i}]`).join(';') +
+      `;${clips.map((_, i) => `[a${i}]`).join('')}amix=inputs=${clips.length}:normalize=0,alimiter=limit=0.89,apad[aout]`
+    : '';
   execFileSync(
     FFMPEG,
     [
       '-y',
       '-f', 'concat', '-safe', '0', '-i', path.join(work, 'bg.txt'),
       '-i', video,
+      ...audioInputs,
       '-filter_complex',
       `[0:v]fps=30,format=yuv420p,setsar=1[bg];` +
         `[1:v]scale=${phoneW}:${PHONE.h}:flags=lanczos,setpts=PTS-STARTPTS+${INTRO}/TB[ph];` +
-        `[bg][ph]overlay=${PHONE.x}:${PHONE.y}:eof_action=pass:enable='between(t,${INTRO},${(total - OUTRO).toFixed(2)})'[v]`,
+        `[bg][ph]overlay=${PHONE.x}:${PHONE.y}:eof_action=pass:enable='between(t,${INTRO},${(total - OUTRO).toFixed(2)})'[v]` +
+        audioFilter,
       '-map', '[v]',
+      ...(clips.length ? ['-map', '[aout]', '-c:a', 'aac', '-b:a', '160k'] : []),
       '-t', total.toFixed(2),
       '-c:v', 'libx264', '-preset', 'medium', '-crf', '20', '-pix_fmt', 'yuv420p', '-movflags', '+faststart',
       outFile,
