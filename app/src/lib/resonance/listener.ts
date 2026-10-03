@@ -37,6 +37,10 @@ export interface EnvSnapshot {
   /** 0–1 的输入音量 */
   level: number;
   motion: boolean;
+  /** 已经真的收到过加速度数据（桌面浏览器往往有接口但没有传感器） */
+  motionLive: boolean;
+  /** 步频（步 / 分），只来自加速度计 */
+  cadence: number | null;
 }
 
 const WORKLET = `
@@ -118,10 +122,20 @@ export class EnvListener {
   private motionPrev = 0;
   private motionLp = 9.8;
   private motionOn = false;
+  private motionSeen = false;
+  private stepMean = 0;
+  private stepVar = 1;
+  private lastStep = 0;
   private timers: ReturnType<typeof setInterval>[] = [];
   private onMotionEvent = (e: DeviceMotionEvent) => this.handleMotion(e);
   /** 每检测到一个环境重音就回调一次（用于可视化与侧链） */
   onHit: ((t: number, strength: number) => void) | null = null;
+  /** 每检测到一步就回调一次（AudioContext 时间） */
+  onStep: ((t: number) => void) | null = null;
+  /** 拍子从哪来：auto 取置信度更高者；跑步时只认脚步 */
+  beatSource: 'auto' | 'mic' | 'motion' = 'auto';
+  /** 估计步频时偏好的速度：散步约 112，跑步约 165 */
+  motionPref = 112;
 
   constructor(ctx: AudioContext) {
     this.ctx = ctx;
@@ -192,12 +206,14 @@ export class EnvListener {
       chroma: [...this.chroma],
       level: Math.min(1, this.levelAcc),
       motion: this.motionOn,
+      motionLive: this.motionSeen,
+      cadence: this.motionBeat?.bpm ?? null,
     };
   }
 
   private bestBeat(): EnvBeat | null {
-    const m = this.micBeat;
-    const s = this.motionBeat;
+    const m = this.beatSource === 'motion' ? null : this.micBeat;
+    const s = this.beatSource === 'mic' ? null : this.motionBeat;
     if (m && s) return s.confidence > m.confidence ? s : m;
     return m ?? s;
   }
@@ -269,13 +285,24 @@ export class EnvListener {
   private handleMotion(e: DeviceMotionEvent) {
     const a = e.accelerationIncludingGravity;
     if (!a || a.x === null || a.y === null || a.z === null) return;
+    this.motionSeen = true;
+    const now = this.ctx.currentTime;
     const mag = Math.hypot(a.x, a.y, a.z);
     this.motionLp += 0.05 * (mag - this.motionLp);
     const v = mag - this.motionLp;
     const onset = Math.max(0, v - this.motionPrev);
     this.motionPrev = v;
-    this.motion.push(onset, this.ctx.currentTime);
+    this.motion.push(onset, now);
     if (this.motion.n % 15 === 0) this.analyzeMotion();
+
+    // 单步检测：落地冲击超过自适应阈值（均值 + 1.5σ，且 > 0.8 m/s²），两步之间至少 250 ms
+    const d = v - this.stepMean;
+    this.stepMean += 0.01 * d;
+    this.stepVar = 0.99 * (this.stepVar + 0.01 * d * d);
+    if (v > this.stepMean + 1.5 * Math.sqrt(this.stepVar) && v > 0.8 && now - this.lastStep > 0.25) {
+      this.lastStep = now;
+      this.onStep?.(now);
+    }
   }
 
   private analyzeMotion() {
@@ -284,7 +311,7 @@ export class EnvListener {
     const span = t[t.length - 1]! - t[0]!;
     if (span <= 0) return;
     const fps = (v.length - 1) / span;
-    const est = estimateTempo(v, fps, { minBpm: 70, maxBpm: 190, prefBpm: 112 });
+    const est = estimateTempo(v, fps, { minBpm: 70, maxBpm: 200, prefBpm: this.motionPref });
     if (!est || est.confidence < 0.35) {
       this.motionBeat = null;
       return;

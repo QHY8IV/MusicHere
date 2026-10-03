@@ -10,15 +10,22 @@ import { pickScenePhoto, PickError } from '../lib/pickImage';
 import { chooseTranspose, fitTempo, keyName, pcName, type Mode, type Tonality } from '../lib/resonance/dsp';
 import { ResonanceEngine, SPACES, type EngineState, type SpaceId } from '../lib/resonance/engine';
 import { EnvListener, type EnvSnapshot } from '../lib/resonance/listener';
+import { guideTempo, onBeat, onBeatRate, pickSongForCadence } from '../lib/resonance/run';
+import { fetchWeather, hourLabel, planScape, type ScapeMode, type Weather } from '../lib/resonance/scape';
 import { SONGS } from '../lib/resonance/songs';
 import { colors, gradients, radius } from '../lib/theme';
+import { RunPanel, ScapePanel, type RunView } from './ResonanceModes.web';
 import { ResonanceViz } from './ResonanceViz.web';
-import { AIBadge, Button, Card, Pill, Screen, Txt } from './ui';
+import { AIBadge, Button, Card, Pill, Screen, Segmented, Txt } from './ui';
 
 /**
- * 共鸣模式：让世界为你的歌伴奏。
- * 对拍（环境 / 脚步的节奏）+ 定调（环境的嗡鸣或调性）+ 入景（AI 看画面调混音）。
+ * 共鸣：让世界为你的歌伴奏。三种模式共用一个引擎：
+ * - 街头：对拍（环境 / 脚步的节奏）+ 定调（环境的嗡鸣或调性）+ 入景（AI 看画面调混音）；
+ * - 跑步：按步频挑歌、锁到脚步上，设了目标步频时用节拍引导把你带过去，并统计合拍率；
+ * - 声景：不放歌，由时间、天气、步子、环境声和这里的指纹实时生成一段永不重复的声景。
  */
+
+type ResMode = 'street' | 'run' | 'scape';
 
 interface SceneMix {
   summary: string;
@@ -71,12 +78,26 @@ export function ResonanceScreen() {
   const [place, setPlace] = useState<Place | null>(null);
   const [print, setPrint] = useState<ResonanceSummary | null>(null);
   const [saving, setSaving] = useState(false);
+  const [mode, setMode] = useState<ResMode>('street');
+  const [runTarget, setRunTarget] = useState<number | null>(null);
+  const [autoPick, setAutoPick] = useState(true);
+  const [run, setRun] = useState<Omit<RunView, 'target' | 'autoPick'>>({ cadence: null, sensor: false, guide: null, onBeatRate: null, elapsed: 0, avgCadence: null });
+  const [scapeMode, setScapeMode] = useState<ScapeMode>('focus');
+  const [weather, setWeather] = useState<Weather | null>(null);
+  const [weatherState, setWeatherState] = useState<'loading' | 'ok' | 'none'>('loading');
+  const [hour, setHour] = useState(() => new Date().getHours());
 
   const engineRef = useRef<ResonanceEngine | null>(null);
   const listenerRef = useRef<EnvListener | null>(null);
   const hitsRef = useRef<number[]>([]);
   const beatOnRef = useRef(beatOn);
   beatOnRef.current = beatOn;
+  const modeRef = useRef(mode);
+  modeRef.current = mode;
+  const stepsRef = useRef<boolean[]>([]);
+  const runStatsRef = useRef({ since: 0, sum: 0, n: 0, lastPick: 0 });
+
+  const plan = planScape(scapeMode, hour, weather);
 
   // 我在哪个地点（在打卡范围内的最近一个）
   const posKey = coords ? `${coords.lat.toFixed(4)},${coords.lng.toFixed(4)}` : '';
@@ -99,10 +120,10 @@ export function ResonanceScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [posKey]);
 
-  // 入景：把场景映射到混音
+  // 入景：把场景映射到混音（声景模式由声景自己决定混音）
   useEffect(() => {
     const eng = engineRef.current;
-    if (!eng) return;
+    if (!eng || mode === 'scape') return;
     const fallbackSpace = (place?.category && SPACE_BY_CATEGORY[place.category]) || 'open';
     if (sceneOn && scene) {
       eng.setDensity(scene.density);
@@ -113,11 +134,48 @@ export function ResonanceScreen() {
       eng.setBrightness(0.75);
       eng.setSpace(sceneOn ? fallbackSpace : 'dry');
     }
-  }, [scene, sceneOn, place, running]);
+  }, [scene, sceneOn, place, running, mode]);
 
   useEffect(() => {
-    engineRef.current?.setSong(songId);
-  }, [songId]);
+    if (mode !== 'scape') engineRef.current?.setSong(songId);
+  }, [songId, mode]);
+
+  // 声景：进入 / 更新 / 退出
+  useEffect(() => {
+    const eng = engineRef.current;
+    if (!eng || !running) return;
+    if (mode === 'scape') eng.setScape(plan);
+    else if (eng.scape) eng.setScape(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [running, mode, scapeMode, weather, hour]);
+
+  // 天气：进入声景时取一次
+  useEffect(() => {
+    if (mode !== 'scape' || !coords || weatherState === 'ok') return;
+    let alive = true;
+    setWeatherState('loading');
+    void fetchWeather(coords.lat, coords.lng).then((w) => {
+      if (!alive) return;
+      setWeather(w);
+      setWeatherState(w ? 'ok' : 'none');
+    });
+    return () => {
+      alive = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mode, posKey]);
+
+  // 时段每分钟更新一次
+  useEffect(() => {
+    const iv = setInterval(() => setHour(new Date().getHours()), 60_000);
+    return () => clearInterval(iv);
+  }, []);
+
+  // 切到跑步时重新计时
+  useEffect(() => {
+    stepsRef.current = [];
+    runStatsRef.current = { since: performance.now(), sum: 0, n: 0, lastPick: 0 };
+  }, [mode, running]);
 
   // 控制回路：每 200 ms 把环境分析结果交给引擎
   useEffect(() => {
@@ -125,28 +183,80 @@ export function ResonanceScreen() {
     const iv = setInterval(() => {
       const eng = engineRef.current;
       if (!eng) return;
-      const env = listenerRef.current?.snapshot() ?? null;
-      if (beatOn && env?.beat) {
-        const fit = fitTempo(env.beat.bpm, eng.song.bpm);
-        eng.setLock({ period: env.beat.period, beat: env.beat.beat, ratio: fit.ratio });
+      const lis = listenerRef.current;
+      if (lis) {
+        lis.beatSource = mode === 'street' ? 'auto' : 'motion';
+        lis.motionPref = mode === 'run' ? 165 : 112;
+      }
+      const env = lis?.snapshot() ?? null;
+      const lockTo = (b: NonNullable<EnvSnapshot['beat']>) =>
+        eng.setLock({ period: b.period, beat: b.beat, ratio: fitTempo(b.bpm, eng.song.bpm).ratio });
+
+      if (mode === 'run') {
+        const cad = env?.cadence ?? null;
+        const stats = runStatsRef.current;
+        const now = performance.now();
+        // 自动挑歌：按步频（没有传感器时按目标），8 秒内不重复换
+        const basis = cad ?? runTarget;
+        if (autoPick && basis && now - stats.lastPick > 8000) {
+          const best = pickSongForCadence(basis, SONGS);
+          if (best.id !== eng.song.id) {
+            stats.lastPick = now;
+            setSongId(best.id);
+          }
+        }
+        let guide: RunView['guide'] = null;
+        if (cad && env?.beat) {
+          stats.sum += cad;
+          stats.n++;
+          guide = guideTempo(cad, runTarget);
+          if (guide.arrived) lockTo(env.beat);
+          else {
+            eng.setLock(null);
+            eng.setFreeTempo(fitTempo(guide.tempo, eng.song.bpm).bpm);
+          }
+        } else {
+          eng.setLock(null);
+          eng.setFreeTempo(runTarget ? fitTempo(runTarget, eng.song.bpm).bpm : eng.song.bpm);
+        }
+        setRun({
+          cadence: cad,
+          sensor: !!env?.motionLive,
+          guide,
+          onBeatRate: onBeatRate(stepsRef.current),
+          elapsed: (now - stats.since) / 1000,
+          avgCadence: stats.n ? stats.sum / stats.n : null,
+        });
+      } else if (mode === 'scape') {
+        // 散步声景跟着步子走；其他声景按自己的慢速
+        if (scapeMode === 'walk' && env?.beat) lockTo(env.beat);
+        else eng.setLock(null);
+      } else if (beatOn && env?.beat) {
+        lockTo(env.beat);
       } else {
         eng.setLock(null);
       }
-      let mode: Mode = (sceneOn && scene?.mode) || eng.song.key.mode;
+
+      let keyMode: Mode = (mode === 'street' && sceneOn && scene?.mode) || eng.song.key.mode;
       let semis = 0;
       let key: Snap['key'] = null;
-      if (keyOn && env && env.tonality.kind !== 'none') {
-        key = chooseTranspose({ tonic: eng.song.key.tonic, mode }, env.tonality);
+      // 声景：环境没有明显的音高时，用这里的共鸣指纹决定根音
+      let tonality: Tonality | null = env && env.tonality.kind !== 'none' ? env.tonality : null;
+      if (!tonality && mode === 'scape' && print?.tonic !== null && print?.tonic !== undefined && print.mode) {
+        tonality = print.mode === 'drone' ? { kind: 'drone', pc: print.tonic, strength: 1 } : { kind: 'key', key: { tonic: print.tonic, mode: print.mode }, strength: 1 };
+      }
+      if (keyOn && tonality) {
+        key = chooseTranspose({ tonic: eng.song.key.tonic, mode: keyMode }, tonality);
         if (key) {
           semis = key.semis;
-          mode = key.mode;
+          keyMode = key.mode;
         }
       }
-      if (semis !== eng.transpose || mode !== eng.mode) eng.setTonality(semis, mode);
+      if (semis !== eng.transpose || keyMode !== eng.mode) eng.setTonality(semis, keyMode);
       setView({ eng: eng.state(), env, key });
     }, 200);
     return () => clearInterval(iv);
-  }, [running, beatOn, keyOn, sceneOn, scene]);
+  }, [running, beatOn, keyOn, sceneOn, scene, mode, runTarget, autoPick, scapeMode, print]);
 
   const stop = useCallback(() => {
     engineRef.current?.stop();
@@ -168,6 +278,7 @@ export function ResonanceScreen() {
       await ctx.resume();
       const eng = new ResonanceEngine(ctx);
       eng.setSong(songId);
+      if (mode === 'scape') eng.setScape(plan);
       engineRef.current = eng;
       const lis = new EnvListener(ctx);
       lis.onHit = (t) => {
@@ -178,7 +289,15 @@ export function ResonanceScreen() {
         await lis.start();
         eng.attachMic(lis.source);
         listenerRef.current = lis;
-        if (navigator.maxTouchPoints > 0) void lis.startMotion();
+        void lis.startMotion();
+        lis.onStep = (t) => {
+          if (modeRef.current !== 'run' || !eng.playing) return;
+          const beats = eng.beats.filter((b) => b <= t);
+          const last = beats[beats.length - 1];
+          if (last === undefined) return;
+          stepsRef.current.push(onBeat(t, last + eng.latency, 60 / eng.bpm, eng.lock?.ratio ?? 1));
+          if (stepsRef.current.length > 200) stepsRef.current.splice(0, 100);
+        };
       } catch {
         setMicError('没有麦克风权限：歌会照常播放，但听不到周围，无法对拍和定调。');
       }
@@ -222,15 +341,18 @@ export function ResonanceScreen() {
     }
   };
 
+  const clipSeconds = mode === 'street' ? 15 : 10;
+  const clipTitle = mode === 'street' ? '共鸣片段' : mode === 'run' ? '跑步片段' : '声景片段';
+
   const record = async () => {
     const eng = engineRef.current;
     if (!eng) return;
     setClip(null);
     setRec(0);
     try {
-      const blob = await eng.record(15, setRec);
+      const blob = await eng.record(clipSeconds, setRec);
       setClip({ url: URL.createObjectURL(blob), type: blob.type });
-      toast.show('共鸣片段录好了');
+      toast.show(`${clipTitle}录好了`);
     } catch (err) {
       toast.show(err instanceof Error ? err.message : '录制失败', 'error');
     } finally {
@@ -245,7 +367,7 @@ export function ResonanceScreen() {
     a.href = clip.url;
     // 文件名用 ASCII：部分浏览器会丢弃非 ASCII 的下载文件名
     const stamp = new Date().toISOString().slice(0, 16).replace(/[-:T]/g, '');
-    a.download = `musichere-resonance-${stamp}.${ext}`;
+    a.download = `musichere-${mode === 'street' ? 'resonance' : mode}-${stamp}.${ext}`;
     document.body.appendChild(a);
     a.click();
     a.remove();
@@ -305,11 +427,23 @@ export function ResonanceScreen() {
   const keyStatus = !running
     ? '开始后，手机会听周围有没有一个「调」'
     : eng && env && env.tonality.kind !== 'none' && view?.key
-      ? `${tonalityText(env.tonality)} → 歌曲 ${view.key.semis >= 0 ? '+' : ''}${view.key.semis} 半音，${keyName(eng.key)}${view.key.role === '同调' ? '' : `（${pcName(env.tonality.kind === 'drone' ? env.tonality.pc : 0)} 是新调的${view.key.role}）`}`
-      : '周围没有明显的音高，歌曲保持原调';
+      ? `${tonalityText(env.tonality)} → ${mode === 'scape' ? '声景' : '歌曲'} ${view.key.semis >= 0 ? '+' : ''}${view.key.semis} 半音，${keyName(eng.key)}${view.key.role === '同调' ? '' : `（${pcName(env.tonality.kind === 'drone' ? env.tonality.pc : 0)} 是新调的${view.key.role}）`}`
+      : mode === 'scape' && print?.tonic !== null && print?.tonic !== undefined && view?.key
+        ? `周围没有明显的音高 → 用这里的共鸣指纹定根音（${keyName(eng!.key)}）`
+        : `周围没有明显的音高，${mode === 'scape' ? '声景' : '歌曲'}保持原调`;
 
   const locked = !!eng?.locked;
   const keyLocked = !!(keyOn && view?.key && running);
+  const bestForRun = mode === 'run' && (run.cadence ?? runTarget) ? pickSongForCadence((run.cadence ?? runTarget)!, SONGS).id : null;
+  const scapeEnv =
+    env && env.tonality.kind !== 'none' && eng
+      ? `${tonalityText(env.tonality)} → 声景的根音跟着它（${keyName(eng.key)}）`
+      : running
+        ? '周围没有明显的音高'
+        : '开始后会听周围有没有嗡鸣';
+  const scapeSteps = scapeMode !== 'walk' ? '这个模式不跟步子' : env?.cadence ? `${Math.round(env.cadence)} 步 / 分 → 脉冲跟着走` : env?.motionLive ? '静止' : '没有检测到加速度计';
+  const printText = place && print?.count ? `${place.name} · ${Math.round(print.bpm!)} BPM${print.tonic !== null ? ` · ${pcName(print.tonic)}${print.mode === 'drone' ? ' 嗡鸣' : print.mode === 'minor' ? ' 小调' : ' 大调'}` : ''}` : null;
+  const now = new Date();
 
   return (
     <Screen testID="screen-resonance" glow={colors.violet}>
@@ -318,17 +452,33 @@ export function ResonanceScreen() {
           <Txt v="display">共鸣</Txt>
           <AIBadge label="实验" />
         </View>
-        <Txt v="sub">降噪把世界关在外面，通透把世界放进来——共鸣让世界成为你这首歌的一部分：跟着它的节奏，落在它的调上。</Txt>
+        <Txt v="sub">
+          {mode === 'street'
+            ? '降噪把世界关在外面，通透把世界放进来——共鸣让世界成为你这首歌的一部分：跟着它的节奏，落在它的调上。'
+            : mode === 'run'
+              ? '按你的步频挑歌、锁在你的脚步上；想跑得更快，音乐会先快一点点，带着你提上去。'
+              : '不放歌：时间、天气、你的步子、身边的嗡鸣，实时生成一段只属于此刻的声景。'}
+        </Txt>
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
           <Pill label="建议戴耳机" icon="headset" color={colors.sky} />
           <Pill label="环境声只在本机分析，不上传" icon="lock-closed" color={colors.mint} />
         </View>
       </View>
 
+      <Segmented<ResMode>
+        value={mode}
+        onChange={setMode}
+        options={[
+          { key: 'street', label: '街头', testID: 'res-mode-street' },
+          { key: 'run', label: '跑步', testID: 'res-mode-run' },
+          { key: 'scape', label: '声景', testID: 'res-mode-scape' },
+        ]}
+      />
+
       <View style={styles.vizCard}>
         <ResonanceViz engine={engineRef} listener={listenerRef} hits={hitsRef} size={vizSize} />
         <View style={styles.legend}>
-          <Legend color={colors.violet} label="世界的拍子" />
+          <Legend color={colors.violet} label={mode === 'street' ? '世界的拍子' : '你的步子'} />
           <Legend color={colors.lime} label="歌的拍子" />
           <Legend color={colors.sky} label="环境重音" />
         </View>
@@ -341,17 +491,55 @@ export function ResonanceScreen() {
         {running ? (
           <Button label="停止" icon="stop" variant="subtle" onPress={stop} testID="res-stop" style={{ alignSelf: 'stretch' }} />
         ) : (
-          <Button label="开始共鸣" icon="pulse" variant="aurora" size="lg" onPress={start} loading={starting} testID="res-start" style={{ alignSelf: 'stretch' }} />
+          <Button
+            label={mode === 'street' ? '开始共鸣' : mode === 'run' ? '开始跑' : '开始声景'}
+            icon={mode === 'run' ? 'walk' : mode === 'scape' ? 'leaf' : 'pulse'}
+            variant="aurora"
+            size="lg"
+            onPress={start}
+            loading={starting}
+            testID="res-start"
+            style={{ alignSelf: 'stretch' }}
+          />
         )}
         {micError ? <Txt v="caption" style={{ color: colors.sunset }}>{micError}</Txt> : null}
       </View>
 
-      <Txt v="label">选一首原创曲</Txt>
+      {mode === 'run' ? (
+        <RunPanel
+          view={{ ...run, target: runTarget, autoPick }}
+          running={running}
+          onTarget={setRunTarget}
+          onAutoPick={setAutoPick}
+        />
+      ) : null}
+
+      {mode === 'scape' ? (
+        <ScapePanel
+          mode={scapeMode}
+          onMode={setScapeMode}
+          plan={plan}
+          inputs={{
+            time: `${hourLabel(hour)} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`,
+            weather,
+            weatherState,
+            env: scapeEnv,
+            steps: scapeSteps,
+            place: printText,
+          }}
+        />
+      ) : null}
+
+      {mode !== 'scape' ? <Txt v="label">{mode === 'run' ? '曲子（自动挑最合拍的，也可以自己选）' : '选一首原创曲'}</Txt> : null}
+      {mode !== 'scape' ? (
       <View style={styles.songs}>
         {SONGS.map((s) => (
           <Pressable
             key={s.id}
-            onPress={() => setSongId(s.id)}
+            onPress={() => {
+              setSongId(s.id);
+              if (mode === 'run') setAutoPick(false);
+            }}
             style={[styles.song, s.id === songId && styles.songOn]}
             testID={`song-${s.id}`}
             accessibilityRole="button"
@@ -362,10 +550,17 @@ export function ResonanceScreen() {
             <Text style={[styles.songMeta, s.id === songId && { color: 'rgba(7,8,12,0.7)' }]}>
               {s.bpm} BPM · {keyName(s.key)}
             </Text>
+            {bestForRun === s.id ? (
+              <Text style={[styles.best, s.id === songId && { color: colors.ink }]} testID="run-best">
+                ★ 最合拍
+              </Text>
+            ) : null}
           </Pressable>
         ))}
       </View>
+      ) : null}
 
+      {mode === 'street' ? (
       <Feature
         icon="pulse"
         title="对拍"
@@ -384,16 +579,18 @@ export function ResonanceScreen() {
           ) : null
         }
       />
+      ) : null}
       <Feature
         icon="musical-notes"
         title="定调"
         on={keyOn}
         onToggle={setKeyOn}
-        status={keyOn ? keyStatus : `关闭：保持原调 ${keyName(song.key)}`}
+        status={keyOn ? keyStatus : `关闭：保持原调 ${mode === 'scape' ? '' : keyName(song.key)}`}
         active={keyLocked}
         activeLabel="已定调"
         testID="res-key"
       />
+      {mode === 'street' ? (
       <Feature
         icon="camera"
         title="入景"
@@ -416,23 +613,24 @@ export function ResonanceScreen() {
           </View>
         }
       />
+      ) : null}
 
       <Card style={{ gap: 12 }} testID="res-clip">
         <View style={styles.rowBetween}>
-          <Txt v="title">共鸣片段</Txt>
-          {rec !== null ? <Pill label={`录制中 ${Math.round(rec * 15)}s / 15s`} icon="radio-button-on" color={colors.red} /> : null}
+          <Txt v="title">{clipTitle}</Txt>
+          {rec !== null ? <Pill label={`录制中 ${Math.round(rec * clipSeconds)}s / ${clipSeconds}s`} icon="radio-button-on" color={colors.red} /> : null}
         </View>
-        <Txt v="sub">把此刻「世界 + 你的歌」录成 15 秒：环境声和音乐按耳朵里听到的时刻对齐。</Txt>
+        <Txt v="sub">把此刻「世界 + {mode === 'scape' ? '声景' : '你的歌'}」录成 {clipSeconds} 秒：环境声和音乐按耳朵里听到的时刻对齐。</Txt>
         {clip ? (
           <View style={{ gap: 10 }}>
             <audio src={clip.url} controls style={{ width: '100%' }} data-testid="res-audio" />
             <Button label="保存片段" icon="download" variant="subtle" size="sm" onPress={saveClip} testID="res-download" />
           </View>
         ) : null}
-        <Button label={rec !== null ? '录制中…' : '录 15 秒'} icon="radio-button-on" variant="subtle" onPress={() => void record()} disabled={!running || rec !== null} testID="res-record" />
+        <Button label={rec !== null ? '录制中…' : `录 ${clipSeconds} 秒`} icon="radio-button-on" variant="subtle" onPress={() => void record()} disabled={!running || rec !== null} testID="res-record" />
       </Card>
 
-      {place ? (
+      {place && mode === 'street' ? (
         <View style={styles.printCard} testID="res-print">
           <LinearGradient colors={['rgba(183,243,107,0.14)', 'rgba(62,230,193,0.04)']} style={StyleSheet.absoluteFill} />
           <View style={styles.rowBetween}>
@@ -578,4 +776,5 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   printBig: { color: colors.lime, fontSize: 28, fontWeight: '900' },
+  best: { color: colors.lime, fontSize: 11, fontWeight: '900', marginTop: 2 },
 });

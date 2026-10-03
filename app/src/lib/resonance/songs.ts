@@ -32,6 +32,8 @@ export interface Song {
   /** 每小节一行；行数与 chords 相同 */
   melody: Step[][];
   sound: { pad: 'warm' | 'saw' | 'glass'; lead: 'rhodes' | 'pluck' | 'bell'; bass: 'sub' | 'saw' };
+  /** 生成式声景：不按谱演奏，由引擎实时即兴（见 engine.ts 的 playScape） */
+  generative?: boolean;
 }
 
 const _ = null;
@@ -110,6 +112,31 @@ export const SONGS: Song[] = [
     sound: { pad: 'saw', lead: 'bell', bass: 'saw' },
   },
   {
+    id: 'sprint',
+    title: '冲线',
+    vibe: 'drum & bass · 跑步',
+    bpm: 172,
+    key: { tonic: 7, mode: 'minor' }, // G 小调
+    swing: 0,
+    chords: [1, 6, 7, 5],
+    sevenths: false,
+    drums: {
+      kick: 'x...x...x...x...',
+      snare: '....x.......x..o',
+      hat: '..x...x...x...x.',
+      ohat: '......x.......x.',
+    },
+    bass: [1, _, 8, _, 1, _, 8, _, 1, _, 8, _, 1, _, 5, _],
+    arp: [0, 1, 2, 4, 0, 1, 2, 4, 0, 1, 2, 4, 2, 1, 0, 1],
+    melody: [
+      [5, _, _, _, 5, _, 6, _, 8, _, _, _, 7, _, 6, _],
+      [5, _, _, _, 3, _, _, _, 1, _, _, _, _, _, _, _],
+      [4, _, _, _, 5, _, 6, _, 7, _, _, _, 6, _, 5, _],
+      [5, _, _, _, _, _, _, _, 2, _, _, _, 5, _, _, _],
+    ],
+    sound: { pad: 'saw', lead: 'pluck', bass: 'saw' },
+  },
+  {
     id: 'rain',
     title: '雨巷',
     vibe: 'ambient · 发呆',
@@ -155,3 +182,24 @@ export function chordSemis(degree: number, mode: Mode, sevenths: boolean): numbe
 }
 
 export const midiToHz = (m: number) => 440 * 2 ** ((m - 69) / 12);
+
+const EMPTY = '................';
+
+/** 声景用的「曲子」：只提供调、速度与音色，具体音符由引擎按输入实时生成 */
+export function scapeSong(key: Key, bpm: number, pad: Song['sound']['pad']): Song {
+  return {
+    id: 'scape',
+    title: '此刻声景',
+    vibe: '生成式 · 永不重复',
+    bpm,
+    key,
+    swing: 0,
+    chords: [1],
+    sevenths: true,
+    drums: { kick: EMPTY, snare: EMPTY, hat: EMPTY },
+    bass: new Array<Step>(16).fill(null),
+    melody: [new Array<Step>(16).fill(null)],
+    sound: { pad, lead: 'bell', bass: 'sub' },
+    generative: true,
+  };
+}
