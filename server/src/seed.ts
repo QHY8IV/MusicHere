@@ -14,6 +14,7 @@ import { openDb, transaction } from './db.ts';
 import { row, type Deps } from './http.ts';
 import { pickBottle, throwBottle } from './services/bottles.ts';
 import { answerQuiz, startQuiz } from './services/quiz.ts';
+import { addPrint } from './services/resonance.ts';
 import { addComment } from './services/comments.ts';
 import { UPLOAD_PREFIX } from './services/images.ts';
 import { checkIn, createPlace, type Category } from './services/places.ts';
@@ -215,7 +216,17 @@ if (exists) {
   process.exit(0);
 }
 
-const created: { id: string; coords: { lat: number; lng: number } }[] = [];
+const created: { id: string; name: string; coords: { lat: number; lng: number } }[] = [];
+
+// 各地点「听起来」的拍子与调（共鸣指纹），模拟过去几周用户在现场贡献的记录
+const PRINTS: Record<string, { bpm: number; tonic: number; mode: 'major' | 'minor' | 'drone'; source: 'mic' | 'motion' }> = {
+  江边步道: { bpm: 112, tonic: 9, mode: 'drone', source: 'motion' }, // 散步的脚步 + 江上轮船的嗡鸣（A）
+  街角咖啡馆: { bpm: 84, tonic: 5, mode: 'major', source: 'mic' },
+  地铁口广场: { bpm: 120, tonic: 4, mode: 'drone', source: 'mic' }, // 闸机与列车进站的低鸣
+  小公园长椅: { bpm: 72, tonic: 7, mode: 'major', source: 'motion' },
+  老街书店: { bpm: 66, tonic: 2, mode: 'major', source: 'mic' },
+  '天台 Livehouse': { bpm: 128, tonic: 9, mode: 'minor', source: 'mic' },
+};
 let users: { id: string }[] = [];
 transaction(db, () => {
   clock = realNow - 30 * 86_400_000;
@@ -230,7 +241,7 @@ transaction(db, () => {
       category: spot.category,
       ...coords,
     });
-    created.push({ id: place.id, coords });
+    created.push({ id: place.id, name: spot.name, coords });
 
     // 封面
     const file = `seed-${spot.image}.jpg`;
@@ -280,6 +291,24 @@ transaction(db, () => {
     }
   }
 });
+
+// 共鸣指纹：每个地点 3–6 位用户贡献过
+for (const [pi, { id, name, coords }] of created.entries()) {
+  const p = PRINTS[name];
+  if (!p) continue;
+  const n = 3 + (pi % 4);
+  for (let k = 0; k < n; k++) {
+    clock = localTime(2 + k * 2, 18, 5 * k);
+    const jitter = (rand() - 0.5) * 4;
+    addPrint(deps, users[(k + pi) % users.length]!.id, id, {
+      ...coords,
+      bpm: p.bpm + jitter,
+      confidence: 0.55 + rand() * 0.35,
+      source: p.source,
+      ...(k % 3 === 2 ? {} : { tonic: p.tonic, mode: p.mode }),
+    });
+  }
+}
 
 // 此地知音：每个地点有几位老用户玩过，知音榜上有人
 for (const [pi, { id, coords }] of created.entries()) {

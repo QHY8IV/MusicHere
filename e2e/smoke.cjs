@@ -1,7 +1,9 @@
 /**
- * 端到端冒烟测试：用无头 Chromium 打开 app 的 web 版，模拟手机尺寸和 GPS 定位，
- * 对着真实后端走一遍核心流程：
- *   登录 → 此刻（推荐理由 / 换一首 / 点赞）→ 听这里（一句话 & 照片，AI 场景理解，留下 AI 推荐）
+ * 端到端冒烟测试：用无头 Chromium 打开 app 的 web 版，模拟手机尺寸、GPS 定位和麦克风（一段合成的街头环境声：
+ * 112 BPM 的脚步 + A 音的发动机嗡鸣），对着真实后端走一遍核心流程：
+ *   登录 → 此刻（推荐理由 / 换一首 / 点赞）
+ *   → 共鸣（对拍到 112 BPM、定调到以 A 为属音的 D 小调、录片段、AI 入景、留下共鸣指纹）
+ *   → 听这里（一句话 & 照片，AI 场景理解，留下 AI 推荐）
  *   → 声景雷达 → 地点（AI 声音画像、打卡捡漂流瓶、此地知音猜歌、投漂流瓶、现场、留言与审核、明信片）
  *   → 分享（新地点 + 照片 + 帮我写）→ 我的（唱片架、漂流瓶）→ 离开现场 → 无定位时用示例位置
  *
@@ -16,6 +18,7 @@ const { chromium } = require('playwright');
 const assert = require('node:assert/strict');
 const path = require('node:path');
 const fs = require('node:fs');
+const { streetWav } = require('./street-sound.cjs');
 
 const WEB_URL = process.env.WEB_URL || 'http://localhost:8081/';
 const OUT = process.env.E2E_OUT || path.join(__dirname, 'out');
@@ -23,6 +26,13 @@ const VIDEO_DIR = process.env.VIDEO_DIR;
 const PHOTO = path.join(__dirname, '..', 'server', 'seed-images', 'park.jpg');
 const SUNSET = path.join(__dirname, '..', 'server', 'seed-images', 'riverside.jpg');
 fs.mkdirSync(OUT, { recursive: true });
+const STREET = streetWav(path.join(OUT, 'street.wav'), { bpm: 112, droneHz: 110, seconds: 24 });
+const MEDIA_ARGS = [
+  '--use-fake-ui-for-media-stream',
+  '--use-fake-device-for-media-stream',
+  `--use-file-for-fake-audio-capture=${STREET}`,
+  '--autoplay-policy=no-user-gesture-required',
+];
 
 const HERE = { latitude: 31.24, longitude: 121.49, accuracy: 20 };
 const FAR = { latitude: 31.24 + 900 / 111195, longitude: 121.49, accuracy: 20 }; // 正北约 900 米，离所有示例地点都较远
@@ -30,22 +40,23 @@ const FAR = { latitude: 31.24 + 900 / 111195, longitude: 121.49, accuracy: 20 };
 (async () => {
   const browser = await chromium.launch({
     ...(process.env.CHROMIUM_PATH ? { executablePath: process.env.CHROMIUM_PATH } : {}),
-    args: ['--no-sandbox'],
+    args: ['--no-sandbox', ...MEDIA_ARGS],
     ...(VIDEO_DIR ? { slowMo: 260 } : {}),
   });
   const ctx = await browser.newContext({
     viewport: { width: 390, height: 844 },
     deviceScaleFactor: 2,
     geolocation: HERE,
-    permissions: ['geolocation'],
+    permissions: ['geolocation', 'microphone'],
     locale: 'zh-CN',
     acceptDownloads: true,
     ...(VIDEO_DIR ? { recordVideo: { dir: VIDEO_DIR, size: { width: 390, height: 844 } } } : {}),
   });
   const page = await ctx.newPage();
   const t0 = Date.now();
-  /** 录视频时记录每一步开始的时间点，用来给成片配字幕 */
+  /** 录视频时记录每一步开始的时间点，用来给成片配字幕；audio 是要混进成片的声音片段 */
   const timeline = [];
+  const audio = [];
   const problems = [];
   page.on('console', (m) => {
     if (m.type() === 'error') problems.push('console: ' + m.text());
@@ -96,7 +107,7 @@ const FAR = { latitude: 31.24 + 900 / 111195, longitude: 121.49, accuracy: 20 };
     assert.equal(await V('current-place').innerText(), '江边步道');
     await V('bottle-teaser').waitFor();
     assert.match(await V('bottle-teaser').innerText(), /3 个漂流瓶/);
-    await V('go-quiz').waitFor();
+    await V('go-resonance').waitFor();
     await V('now-reason').waitFor();
     assert.ok((await V('now-reason').innerText()).length > 4, '推荐理由不应为空');
     await page.waitForTimeout(600);
@@ -119,8 +130,62 @@ const FAR = { latitude: 31.24 + 900 / 111195, longitude: 121.49, accuracy: 20 };
     await scroll(-800);
   });
 
+  await step('共鸣：听见周围的拍子与调，歌曲对拍、定调（同时录下 15 秒片段）', async () => {
+    await page.getByTestId('tab-resonance').click();
+    await V('res-start').waitFor();
+    await V('song-night').click();
+    await shot('r0-resonance');
+    await pause(1500);
+    await V('res-start').click();
+    await V('res-record').click();
+    audio.push({ t: (Date.now() - t0) / 1000, file: path.join(OUT, 'resonance-clip.webm') });
+    // 录制的 15 秒里一直看着可视化：两根指针慢慢重合
+    await page.mouse.move(195, 420);
+    await page.mouse.wheel(0, -3000);
+    await V('res-readout').filter({ hasText: '已对拍' }).waitFor({ timeout: 20000 });
+    const bpm = Number((await V('res-beat-status').innerText()).match(/环境 ([\d.]+) BPM/)[1]);
+    assert.ok(Math.abs(bpm - 112) < 3, `应识别出约 112 BPM，实际 ${bpm}`);
+    const key = await V('res-key-status').innerText();
+    assert.match(key, /持续的 A 音/);
+    assert.match(key, /D 小调/, '夜行（E 小调）应移到以 A 为属音的 D 小调');
+    // 相位收敛到 20 ms 以内
+    await page.waitForFunction(() => {
+      const el = [...document.querySelectorAll('[data-testid=res-readout]')].find((e) => e.offsetParent);
+      const m = el && el.innerText.match(/相位差 (\d+) ms/);
+      return m && Number(m[1]) <= 20;
+    }, null, { timeout: 15000 });
+    await shot('r1-locked');
+    await V('res-audio').waitFor({ timeout: 20000 });
+    await V('res-download').scrollIntoViewIfNeeded();
+    const [download] = await Promise.all([page.waitForEvent('download'), V('res-download').click()]);
+    assert.match(download.suggestedFilename(), /^musichere-resonance-\d{12}\.(webm|ogg|m4a)$/);
+    await download.saveAs(audio[0].file);
+    assert.ok(fs.statSync(audio[0].file).size > 20000, '片段应有内容');
+    await pause(800);
+  });
+
+  await step('共鸣：入景——拍一下，AI 按画面调混响、明暗与编配', async () => {
+    const [chooser] = await Promise.all([page.waitForEvent('filechooser'), V('res-scene-photo').click()]);
+    await chooser.setFiles(SUNSET);
+    await V('res-scene-status').filter({ hasText: '混响' }).waitFor();
+    await V('res-scene').scrollIntoViewIfNeeded();
+    await shot('r2-scene');
+    await pause(1800);
+  });
+
+  await step('共鸣：留下这里的共鸣指纹', async () => {
+    await V('res-save-print').scrollIntoViewIfNeeded();
+    await V('res-save-print').click();
+    await toast(/已把这里的拍子留在「江边步道」/);
+    assert.match(await V('res-print-value').innerText(), /^11\d BPM · A 嗡鸣$/);
+    await shot('r3-print');
+    await pause(1500);
+    await V('res-stop').click();
+  });
+
   await step('听这里：一句话 + 快捷心情 → AI 场景理解与带理由的推荐', async () => {
-    await page.getByTestId('tab-listen').click();
+    await page.getByTestId('tab-index').click();
+    await V('ai-cta').click();
     await V('scene-go').waitFor();
     await shot('04-listen');
     await pause(1000);
@@ -190,6 +255,7 @@ const FAR = { latitude: 31.24 + 900 / 111195, longitude: 121.49, accuracy: 20 };
     await pause(1200);
     await V('persona-summary').waitFor();
     assert.match(await V('persona-card').innerText(), /最热闹/);
+    assert.match(await V('place-print').innerText(), /11\d BPM · A 嗡鸣/);
     if (VIDEO_DIR) {
       await scroll(650);
       await pause(2200);
@@ -216,7 +282,7 @@ const FAR = { latitude: 31.24 + 900 / 111195, longitude: 121.49, accuracy: 20 };
     assert.match(txt, /《海阔天空》/);
   });
 
-  await step('此地知音：AI 出谜猜歌、逐题揭晓冷知识、现场加成、知音榜', async () => {
+  if (!VIDEO_DIR) await step('此地知音：AI 出谜猜歌、逐题揭晓冷知识、现场加成、知音榜', async () => {
     await V('quiz-card').scrollIntoViewIfNeeded();
     await pause(1200);
     const started = page.waitForResponse((r) => r.url().includes('/quiz') && r.request().method() === 'POST');
@@ -392,7 +458,7 @@ const FAR = { latitude: 31.24 + 900 / 111195, longitude: 121.49, accuracy: 20 };
   const video = page.video();
   await ctx.close();
   if (VIDEO_DIR && video) {
-    fs.writeFileSync(path.join(VIDEO_DIR, 'timeline.json'), JSON.stringify({ video: await video.path(), timeline }, null, 2));
+    fs.writeFileSync(path.join(VIDEO_DIR, 'timeline.json'), JSON.stringify({ video: await video.path(), timeline, audio }, null, 2));
   }
   await browser.close().catch(() => {});
 

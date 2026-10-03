@@ -7,6 +7,7 @@ import { Vinyl } from './Art';
 import { Button, Field, Txt } from './ui';
 
 const FEATURES = [
+  { k: '共鸣', v: '让世界为你的歌伴奏：跟上它的节奏，落在它的调上' },
   { k: '拍一下', v: 'AI 读懂此刻的光线与心情，挑一首歌' },
   { k: '此地记忆', v: '听见前人在这里留下的歌和现场' },
   { k: '漂流瓶', v: '把一首歌留给下一个路过的人' },

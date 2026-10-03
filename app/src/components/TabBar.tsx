@@ -10,12 +10,12 @@ type Icon = ComponentProps<typeof Ionicons>['name'];
 const META: Record<string, { label: string; icon: Icon; iconOn: Icon }> = {
   index: { label: '此刻', icon: 'radio-outline', iconOn: 'radio' },
   places: { label: '地点', icon: 'map-outline', iconOn: 'map' },
-  listen: { label: '听这里', icon: 'scan-outline', iconOn: 'scan' },
+  resonance: { label: '共鸣', icon: 'pulse-outline', iconOn: 'pulse' },
   add: { label: '分享', icon: 'add-circle-outline', iconOn: 'add-circle' },
   me: { label: '我的', icon: 'person-outline', iconOn: 'person' },
 };
 
-/** 悬浮的胶囊 Tab 栏；中间是「听这里」（AI）的极光按钮。 */
+/** 悬浮的胶囊 Tab 栏；中间是「共鸣」的极光按钮。 */
 export function TabBar({ state, navigation, insets }: BottomTabBarProps) {
   return (
     <View pointerEvents="box-none" style={[styles.wrap, { paddingBottom: Math.max(insets.bottom, 12) }]}>
@@ -28,7 +28,7 @@ export function TabBar({ state, navigation, insets }: BottomTabBarProps) {
             const e = navigation.emit({ type: 'tabPress', target: route.key, canPreventDefault: true });
             if (!focused && !e.defaultPrevented) navigation.navigate(route.name, route.params);
           };
-          if (route.name === 'listen') {
+          if (route.name === 'resonance') {
             return (
               <Pressable
                 key={route.key}
@@ -36,12 +36,12 @@ export function TabBar({ state, navigation, insets }: BottomTabBarProps) {
                 accessibilityRole="tab"
                 accessibilityState={{ selected: focused }}
                 accessibilityLabel={meta.label}
-                testID="tab-listen"
+                testID="tab-resonance"
                 style={styles.centerSlot}
               >
                 <View style={styles.centerBtn}>
                   <LinearGradient colors={[...gradients.aurora]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
-                  <Ionicons name="scan" size={24} color={colors.ink} />
+                  <Ionicons name="pulse" size={26} color={colors.ink} />
                 </View>
                 <Text style={[styles.label, focused && { color: colors.text }]}>{meta.label}</Text>
               </Pressable>

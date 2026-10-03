@@ -41,6 +41,7 @@ import { useToast } from '../../lib/feedback';
 import { CATEGORY_LABEL, KIND_LABEL, MOODS, checkinAllowanceM, formatDistance } from '../../lib/format';
 import { useLocation } from '../../lib/location';
 import { colors, kindColor, radius } from '../../lib/theme';
+import { pcName } from '../../lib/resonance/dsp';
 import { useAsync } from '../../lib/useAsync';
 
 type Tab = Kind | 'comments';
@@ -62,6 +63,7 @@ export default function PlaceScreen() {
   const persona = useAsync(() => api.persona(id), [id]);
   const waiting = useAsync(() => api.waitingBottles(id), [id]);
   const board = useAsync(() => api.quizBoard(id), [id]);
+  const print = useAsync(() => api.resonance(id), [id]);
 
   const [tab, setTab] = useState<Tab>('vibe');
   const [checkingIn, setCheckingIn] = useState(false);
@@ -218,11 +220,33 @@ export default function PlaceScreen() {
             <Button label="声音明信片" icon="image" variant="subtle" onPress={openPostcard} style={{ flex: 1 }} testID="postcard-open" />
           </View>
 
-          {/* 此地知音：猜歌小游戏 */}
-          <QuizCard placeName={p.name} board={board.data} inRange={inRange} onStart={() => setPlaying(true)} />
+          {/* 共鸣指纹：这里平时的拍子与调 */}
+          <View style={styles.print} testID="place-print">
+            <LinearGradient colors={['rgba(160,139,255,0.22)', 'rgba(62,230,193,0.06)']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
+            <View style={{ flex: 1, gap: 4 }}>
+              <Txt v="label">这里的拍子</Txt>
+              {print.data && print.data.resonance.count > 0 ? (
+                <>
+                  <Text style={styles.printValue}>
+                    {Math.round(print.data.resonance.bpm!)} BPM
+                    {print.data.resonance.tonic !== null
+                      ? ` · ${pcName(print.data.resonance.tonic)}${print.data.resonance.mode === 'drone' ? ' 嗡鸣' : print.data.resonance.mode === 'minor' ? ' 小调' : ' 大调'}`
+                      : ''}
+                  </Text>
+                  <Txt v="caption">{print.data.resonance.contributors} 人在现场留下的共鸣指纹</Txt>
+                </>
+              ) : (
+                <Txt v="sub">还没有人留下这里的拍子</Txt>
+              )}
+            </View>
+            <Button label="去共鸣" icon="pulse" variant="aurora" size="sm" onPress={() => router.push('/resonance')} testID="place-go-resonance" />
+          </View>
 
           {/* AI 声音画像 */}
           {persona.data ? <PersonaCard persona={persona.data.persona} /> : <Loading label="AI 正在描绘这里的声音…" />}
+
+          {/* 此地知音：猜歌小游戏 */}
+          <QuizCard placeName={p.name} board={board.data} inRange={inRange} onStart={() => setPlaying(true)} />
 
           <View style={styles.tabsHead}>
             <Segmented<Tab>
@@ -428,6 +452,18 @@ const styles = StyleSheet.create({
   sumRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   sumText: { color: colors.text, fontSize: 13, flex: 1 },
   actionRow: { flexDirection: 'row', gap: 10 },
+  print: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    padding: 16,
+    borderRadius: radius.xl,
+    borderWidth: 1,
+    borderColor: 'rgba(160,139,255,0.35)',
+    backgroundColor: colors.surface,
+    overflow: 'hidden',
+  },
+  printValue: { color: colors.text, fontSize: 22, fontWeight: '900' },
   tabsHead: { marginTop: 4 },
   listHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
 });

@@ -140,6 +140,20 @@ CREATE TABLE IF NOT EXISTS quizzes (
 CREATE INDEX IF NOT EXISTS idx_quizzes_place ON quizzes(place_id, finished_at);
 CREATE INDEX IF NOT EXISTS idx_quizzes_user ON quizzes(user_id, place_id);
 
+-- 共鸣指纹：用户在现场开启共鸣模式时，本机分析出的环境拍子与调（只存数字，不存音频）
+CREATE TABLE IF NOT EXISTS resonance_prints (
+  id          TEXT PRIMARY KEY,
+  place_id    TEXT NOT NULL REFERENCES places(id) ON DELETE CASCADE,
+  user_id     TEXT NOT NULL REFERENCES users(id),
+  bpm         REAL NOT NULL,
+  confidence  REAL NOT NULL,
+  source      TEXT NOT NULL CHECK (source IN ('mic', 'motion')),
+  tonic       INTEGER,
+  mode        TEXT CHECK (mode IN ('major', 'minor', 'drone')),
+  created_at  TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_resonance_place ON resonance_prints(place_id, created_at);
+
 CREATE TABLE IF NOT EXISTS comment_likes (
   comment_id  TEXT NOT NULL REFERENCES comments(id) ON DELETE CASCADE,
   user_id     TEXT NOT NULL REFERENCES users(id),

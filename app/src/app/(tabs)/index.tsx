@@ -154,13 +154,7 @@ function Now({ coords }: { coords: Coords }) {
           </Pressable>
           <View style={styles.heroBar}>
             <Button label="打卡，听这里的歌" icon="flag" onPress={() => router.push(`/place/${here.id}`)} testID="go-checkin" style={{ flex: 1 }} />
-            <Button
-              label="猜歌"
-              icon="game-controller"
-              variant="aurora"
-              onPress={() => router.push({ pathname: '/place/[id]', params: { id: here.id, play: '1' } })}
-              testID="go-quiz"
-            />
+            <Button label="共鸣" icon="pulse" variant="aurora" onPress={() => router.push('/resonance')} testID="go-resonance" />
           </View>
         </View>
       ) : (

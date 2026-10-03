@@ -356,7 +356,30 @@ export const api = {
     request<QuizAnswer>('POST', `/quizzes/${quizId}/answer`, { round, choice }),
   quizBoard: (placeId: string) => request<QuizBoard>('GET', `/places/${placeId}/quiz/board`),
   myRecords: () => request<{ records: RecordItem[] }>('GET', '/me/records'),
+
+  resonance: (placeId: string) => request<{ resonance: ResonanceSummary }>('GET', `/places/${placeId}/resonance`),
+  addResonance: (placeId: string, input: Pos & ResonancePrint) =>
+    request<{ resonance: ResonanceSummary }>('POST', `/places/${placeId}/resonance`, input),
 };
+
+// ---- 共鸣指纹 ----
+export interface ResonancePrint {
+  bpm: number;
+  confidence: number;
+  source: 'mic' | 'motion';
+  tonic?: number;
+  mode?: 'major' | 'minor' | 'drone';
+}
+
+export interface ResonanceSummary {
+  count: number;
+  bpm: number | null;
+  tonic: number | null;
+  mode: 'major' | 'minor' | 'drone' | null;
+  keyShare: number;
+  contributors: number;
+  lastAt: string | null;
+}
 
 // ---- 此地知音 ----
 export type QuizRoundType = 'emoji' | 'top' | 'live' | 'artist' | 'peak' | 'mood' | 'comment';
