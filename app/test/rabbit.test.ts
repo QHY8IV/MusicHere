@@ -3,10 +3,12 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import {
   COOL_END,
+  buildReport,
   control,
   coolTempo,
   DropTracker,
   phaseAt,
+  reportCsv,
   SIM,
   simInit,
   simStep,
@@ -105,6 +107,28 @@ describe('兔子电台：控制', () => {
     assert.equal(c.lock, false);
     assert.ok(c.lead > 0 && c.lead <= 0.03 + 1e-9, `lead ${c.lead}`);
     assert.ok(c.music > 160);
+  });
+
+  it('仅跟随（对照组）：照样检测掉速，但音乐始终锁在脚步上', () => {
+    const arm: typeof plan = { ...plan, lead: false };
+    const tr = new DropTracker(168);
+    tr.update(-1, 168, 'pace');
+    tr.update(0, 160, 'pace');
+    tr.update(2, 160, 'pace');
+    assert.equal(tr.state, 'dropped');
+    const c = control('pace', 160, arm, tr, null);
+    assert.equal(c.lock, true);
+    assert.equal(c.lead, 0);
+    assert.match(c.label, /对照组/);
+  });
+
+  it('CSV：摘要 + 明细，标明哪一组', () => {
+    const tr = new DropTracker(168);
+    const r = buildReport({ seconds: 3, plan: { ...plan, lead: false }, series: [{ t: 1, cadence: 160.04, music: 160, dropped: false, phase: 'pace' }], tracker: tr, hits: [], simulated: false });
+    const csv = reportCsv(r);
+    assert.match(csv, /# arm,follow-only/);
+    assert.match(csv, /# simulated,false/);
+    assert.match(csv, /t,phase,cadence,music,dropped\n1\.0,pace,160\.0,160\.0,0\n$/);
   });
 
   it('冷却时音乐比脚步慢', () => {

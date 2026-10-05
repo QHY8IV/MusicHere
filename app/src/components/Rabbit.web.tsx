@@ -12,6 +12,7 @@ import {
   control,
   DropTracker,
   phaseAt,
+  reportCsv,
   SIM,
   simInit,
   simStep,
@@ -88,6 +89,7 @@ export function RabbitScreen() {
   const router = useRouter();
   const [target, setTarget] = useState<number>(168);
   const [source, setSource] = useState<'sim' | 'real'>('sim');
+  const [arm, setArm] = useState<'rabbit' | 'follow'>('rabbit');
   const [running, setRunning] = useState(false);
   const [starting, setStarting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -139,14 +141,14 @@ export function RabbitScreen() {
         let plan: RabbitPlan;
         if (simulated) {
           lis.enableSim();
-          plan = SIM.plan(target);
+          plan = { ...SIM.plan(target), lead: arm === 'rabbit' };
         } else {
           if (!(await lis.startMotion())) {
             void ctx.close();
             setError('没有拿到加速度计：请用手机浏览器打开（iPhone 需要允许「动作与方向」），或改用「模拟跑者」。');
             return;
           }
-          plan = { target, warmup: 180, cooldown: 60 };
+          plan = { target, warmup: 180, cooldown: 60, lead: arm === 'rabbit' };
         }
 
         const r: Run = {
@@ -270,7 +272,7 @@ export function RabbitScreen() {
         setStarting(false);
       }
     },
-    [source, target, cleanup, finish],
+    [source, target, arm, cleanup, finish],
   );
 
   // 欢迎页点了「看兔子带跑」：进来就自动开始模拟
@@ -317,6 +319,17 @@ export function RabbitScreen() {
               { key: 'real', label: '真跑（手机）', testID: 'rabbit-src-real' },
             ]}
           />
+          <Segmented<'rabbit' | 'follow'>
+            value={arm}
+            onChange={setArm}
+            options={[
+              { key: 'rabbit', label: '兔子带跑', testID: 'rabbit-arm-rabbit' },
+              { key: 'follow', label: '仅跟随（对照）', testID: 'rabbit-arm-follow' },
+            ]}
+          />
+          <Txt v="caption">
+            {arm === 'follow' ? '对照组：音乐始终锁在你的脚步上，不领先；照常记录掉速，用来和「兔子带跑」对比（见实测方案）。' : '兔子带跑：掉速了才领先 3%。'}
+          </Txt>
           <Txt v="caption">
             {source === 'sim'
               ? '在电脑上把一次完整的跑演一遍：热身 8 秒 → 带跑 56 秒（体力会下滑两次）→ 冷却 12 秒。模拟跑者的脚步走的是和真实加速度计同一条检测管线。'
@@ -387,6 +400,7 @@ export function RabbitScreen() {
         <View style={styles.card} testID="rabbit-report">
           <Txt v="title">跑后成绩单</Txt>
           {report.r.simulated ? <Pill label="模拟跑者（模型演示），不是真人数据" icon="flask" color={colors.sky} /> : null}
+          {!report.r.rabbit ? <Pill label="对照组：仅跟随，兔子没有出手" icon="git-compare" color={colors.sunset} /> : null}
           <View style={styles.stats}>
             <Stat label="平均步频（带跑段）" value={report.r.avgCadence ? `${Math.round(report.r.avgCadence)}` : '—'} />
             <Stat label="时长" value={mmss(report.r.seconds)} />
@@ -398,7 +412,7 @@ export function RabbitScreen() {
           <RabbitChart series={report.r.series} target={report.r.target} />
           {report.r.events.map((e, i) => (
             <Txt key={i} v="caption" style={{ color: colors.sub }}>
-              {`第 ${Math.round(e.at)} 秒 步频掉到 ${Math.round(e.cadence)} → 兔子领先 3% → ${e.recoveredIn !== null ? `${Math.round(e.recoveredIn)} 秒后回到 ${report.r.target}` : '到收工还没回来'}`}
+              {`第 ${Math.round(e.at)} 秒 步频掉到 ${Math.round(e.cadence)} → ${report.r.rabbit ? '兔子领先 3%' : '仅跟随（音乐不领先）'} → ${e.recoveredIn !== null ? `${Math.round(e.recoveredIn)} 秒后回到 ${report.r.target}` : '到收工还没回来'}`}
             </Txt>
           ))}
           <View style={{ flexDirection: 'row', gap: 10 }}>
@@ -417,6 +431,19 @@ export function RabbitScreen() {
             />
             <Button label="再跑一次" icon="refresh" variant="aurora" style={{ flex: 1 }} onPress={() => setReport(null)} testID="rabbit-again" />
           </View>
+          <Button
+            label="导出 CSV（实测用）"
+            icon="document-text"
+            variant="subtle"
+            size="sm"
+            onPress={() => {
+              const a = document.createElement('a');
+              a.href = URL.createObjectURL(new Blob([String.fromCharCode(0xfeff) + reportCsv(report.r)], { type: 'text/csv;charset=utf-8' }));
+              a.download = `兔子电台-${report.r.rabbit ? 'rabbit' : 'follow'}-${new Date().toISOString().slice(0, 16).replace(/[:T]/g, '')}.csv`;
+              a.click();
+            }}
+            testID="rabbit-csv"
+          />
         </View>
       ) : null}
 

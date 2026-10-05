@@ -19,6 +19,11 @@ export interface RabbitPlan {
   warmup: number;
   /** 冷却秒数 */
   cooldown: number;
+  /**
+   * 兔子是否出手（默认 true）。false = 「仅跟随」对照组：照常检测掉速、记录数据，但音乐始终锁在脚步上不领先。
+   * 用于真人实测里对比有没有兔子。
+   */
+  lead?: boolean;
 }
 
 /** 掉到目标以下多少算「掉速」 */
@@ -133,14 +138,16 @@ export function control(
     const music = coolTempo(cool.startCadence, cool.progress);
     return { music, lock: false, lead: music / cadence - 1, label: '冷却：节拍慢慢降下来，陪你把心率放回去' };
   }
-  if (phase === 'pace' && tracker.state === 'dropped') {
+  if (phase === 'pace' && tracker.state === 'dropped' && plan.lead !== false) {
     // 瞄准目标上方一点点（最多领先 3%），这样才能把你完全带回「被带回来」的范围内，而不是停在半路
     const music = Math.min(cadence * (1 + LEAD_MAX), plan.target + 3);
     const lead = music / cadence - 1;
     return { music, lock: false, lead, label: `兔子领先 ${Math.max(1, Math.round(lead * 100))}%，带你从 ${Math.round(cadence)} 回到 ${plan.target}` };
   }
   if (phase === 'warmup') return { music: cadence, lock: true, lead: 0, label: '热身：音乐跟着你的脚步，先不催你' };
-  return { music: cadence, lock: true, lead: 0, label: tracker.state === 'dropped' ? '快回来了，锁回你的脚步' : '陪跑：每一步都踩在拍子上' };
+  const dropped = tracker.state === 'dropped' && phase === 'pace';
+  const label = !dropped ? '陪跑：每一步都踩在拍子上' : plan.lead === false ? '掉速了（对照组：音乐不领先，继续跟着你）' : '快回来了，锁回你的脚步';
+  return { music: cadence, lock: true, lead: 0, label };
 }
 
 /** 歌曲实际该放多快（伸缩到歌自己的速度范围） */
@@ -222,6 +229,29 @@ export interface Report {
   events: DropEvent[];
   series: Sample[];
   simulated: boolean;
+  /** 本次是否让兔子出手（false = 仅跟随对照） */
+  rabbit: boolean;
+}
+
+const NL = String.fromCharCode(10);
+
+/** 导出 CSV（实测用）：先是几行 # 开头的摘要，再是每秒一行的明细 */
+export function reportCsv(r: Report): string {
+  const f = (x: number | null, d = 1) => (x === null ? '' : x.toFixed(d));
+  const head = [
+    `# target,${r.target}`,
+    `# seconds,${f(r.seconds)}`,
+    `# simulated,${r.simulated}`,
+    `# arm,${r.rabbit ? 'rabbit' : 'follow-only'}`,
+    `# avg_cadence_pace,${f(r.avgCadence)}`,
+    `# on_beat_rate,${f(r.onBeatRate, 3)}`,
+    `# drops,${r.drops}`,
+    `# recoveries,${r.recoveries}`,
+    `# avg_recovery_s,${f(r.avgRecovery)}`,
+    't,phase,cadence,music,dropped',
+  ];
+  const rows = r.series.map((s) => `${s.t.toFixed(1)},${s.phase},${f(s.cadence)},${f(s.music)},${s.dropped ? 1 : 0}`);
+  return [...head, ...rows].join(NL) + NL;
 }
 
 export function buildReport(args: {
@@ -246,5 +276,6 @@ export function buildReport(args: {
     events: tracker.events,
     series,
     simulated,
+    rabbit: plan.lead !== false,
   };
 }
