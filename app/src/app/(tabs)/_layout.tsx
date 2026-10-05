@@ -6,9 +6,9 @@ import { colors } from '../../lib/theme';
 
 export default function TabsLayout() {
   const router = useRouter();
-  // 从欢迎页点了「30 秒听见共鸣」：直达共鸣页（共鸣页自己消费这个标记并自动开始）
+  // 从欢迎页点了「看兔子带跑」：直达兔子电台（它自己消费这个标记并自动开始模拟）
   useEffect(() => {
-    if (peekAutoDemo()) router.replace('/resonance');
+    if (peekAutoDemo()) router.replace('/rabbit');
   }, [router]);
   return (
     <Tabs
@@ -17,7 +17,9 @@ export default function TabsLayout() {
     >
       <Tabs.Screen name="index" options={{ title: '此刻' }} />
       <Tabs.Screen name="places" options={{ title: '地点' }} />
-      <Tabs.Screen name="resonance" options={{ title: '共鸣' }} />
+      <Tabs.Screen name="rabbit" options={{ title: '兔子' }} />
+      {/* 共鸣（街头）从兔子电台页进入，不占 Tab 位置 */}
+      <Tabs.Screen name="resonance" options={{ title: '共鸣', href: null }} />
       {/* 「听这里」从首页进入，不占 Tab 位置 */}
       <Tabs.Screen name="listen" options={{ title: '听这里', href: null }} />
       <Tabs.Screen name="add" options={{ title: '分享' }} />

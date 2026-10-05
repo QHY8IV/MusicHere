@@ -29,6 +29,22 @@ export interface TempoEstimate {
   confidence: number;
 }
 
+/**
+ * 把带时间戳的起音（可能间隔不均：浏览器定时器抖动、部分手机传感器采样不稳）按时间放进均匀网格，
+ * 同一格里取最大值。估计速度 / 相位时必须在均匀的网格上做，否则自相关会被时间错位搅乱（甚至锁到半速）。
+ */
+export function resampleOnsets(t: ArrayLike<number>, v: ArrayLike<number>, fps: number): Float32Array {
+  const n = t.length;
+  if (n < 2) return new Float32Array(0);
+  const t0 = t[0]!;
+  const out = new Float32Array(Math.floor((t[n - 1]! - t0) * fps) + 1);
+  for (let i = 0; i < n; i++) {
+    const b = Math.round((t[i]! - t0) * fps);
+    if (b >= 0 && b < out.length && v[i]! > out[b]!) out[b] = v[i]!;
+  }
+  return out;
+}
+
 /** 三点平滑 + 去均值 */
 function prepare(onset: ArrayLike<number>): Float64Array {
   const n = onset.length;

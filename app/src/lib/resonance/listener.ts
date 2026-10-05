@@ -4,6 +4,7 @@ import {
   detectTonality,
   estimatePhase,
   estimateTempo,
+  resampleOnsets,
   smoothChroma,
   type Tonality,
 } from './dsp';
@@ -140,6 +141,8 @@ export class EnvListener {
   beatSource: 'auto' | 'mic' | 'motion' = 'auto';
   /** 估计步频时偏好的速度：散步约 112，跑步约 165 */
   motionPref = 112;
+  /** 估计步频时接受的最慢速度：走路约 70，跑步 120（避免锁到两步一拍的半速） */
+  motionMin = 70;
 
   constructor(ctx: AudioContext) {
     this.ctx = ctx;
@@ -380,9 +383,24 @@ export class EnvListener {
   private handleMotion(e: DeviceMotionEvent) {
     const a = e.accelerationIncludingGravity;
     if (!a || a.x === null || a.y === null || a.z === null) return;
+    this.processMotion(Math.hypot(a.x, a.y, a.z));
+  }
+
+  /**
+   * 模拟跑者：把合成的加速度幅值（含重力，约 9.8 + 落地冲击）送进和真实传感器同一条管线，
+   * 步数检测、步频估计、锁相全部照常工作。
+   */
+  enableSim() {
+    this.motionOn = true;
+  }
+
+  injectMotion(mag: number) {
+    this.processMotion(mag);
+  }
+
+  private processMotion(mag: number) {
     this.motionSeen = true;
     const now = this.ctx.currentTime;
-    const mag = Math.hypot(a.x, a.y, a.z);
     this.motionLp += 0.05 * (mag - this.motionLp);
     const v = mag - this.motionLp;
     const onset = Math.max(0, v - this.motionPrev);
@@ -401,17 +419,22 @@ export class EnvListener {
   }
 
   private analyzeMotion() {
-    const { v, t } = this.motion.last(60 * WINDOW_S);
-    if (v.length < 120) return;
-    const span = t[t.length - 1]! - t[0]!;
-    if (span <= 0) return;
-    const fps = (v.length - 1) / span;
-    const est = estimateTempo(v, fps, { minBpm: 70, maxBpm: 200, prefBpm: this.motionPref });
+    const all = this.motion.last(600);
+    if (all.v.length < 100) return;
+    const tEnd = all.t[all.t.length - 1]!;
+    const from = all.t.findIndex((x) => x >= tEnd - WINDOW_S);
+    const t = all.t.subarray(from);
+    const span = tEnd - t[0]!;
+    if (span < 2.5) return;
+    // 传感器的采样间隔并不均匀：先按时间戳放进 60 Hz 的均匀网格，再估计
+    const fps = 60;
+    const grid = resampleOnsets(t, all.v.subarray(from), fps);
+    const est = estimateTempo(grid, fps, { minBpm: this.motionMin, maxBpm: 200, prefBpm: this.motionPref });
     if (!est || est.confidence < 0.35) {
       this.motionBeat = null;
       return;
     }
-    const phi = estimatePhase(v, est.period);
-    this.motionBeat = { source: 'motion', bpm: est.bpm, period: est.period / fps, beat: t[t.length - 1]! - phi / fps, confidence: est.confidence };
+    const phi = estimatePhase(grid, est.period);
+    this.motionBeat = { source: 'motion', bpm: est.bpm, period: est.period / fps, beat: tEnd - phi / fps, confidence: est.confidence };
   }
 }

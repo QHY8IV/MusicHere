@@ -183,6 +183,15 @@ export class ResonanceEngine {
     this.tick();
   }
 
+  /** 淡出：冷却结束时让音乐自然收尾，而不是戛然而止 */
+  fadeOut(seconds: number) {
+    const g = this.master.gain;
+    const now = this.ctx.currentTime;
+    g.cancelScheduledValues(now);
+    g.setValueAtTime(g.value, now);
+    g.linearRampToValueAtTime(0, now + seconds);
+  }
+
   stop() {
     if (this.timer) clearInterval(this.timer);
     this.timer = null;

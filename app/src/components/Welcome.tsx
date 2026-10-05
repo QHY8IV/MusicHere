@@ -8,8 +8,8 @@ import { Vinyl } from './Art';
 import { Button, Field, Txt } from './ui';
 
 const FEATURES = [
-  { k: '共鸣', v: '听出身边的节奏和音高，歌跟上脚步、落在街的调上' },
-  { k: '此地记忆', v: '听见前人在这里留下的歌和现场，也留一个漂流瓶' },
+  { k: '陪跑', v: '平时锁在你的脚步上；掉速了才领先 3% 把你带回去' },
+  { k: '收工', v: '冷却时节拍渐慢、音量淡出，自动收尾，再给你一张成绩单' },
 ];
 
 export function Welcome() {
@@ -54,16 +54,16 @@ export function Welcome() {
         style={StyleSheet.absoluteFill}
       />
       <View style={styles.box}>
-        <Vinyl title="此地有歌" artist="MusicHere" size={150} />
+        <Vinyl title="兔子电台" artist="PACER RADIO" size={150} />
         <View style={{ alignItems: 'center', gap: 6 }}>
-          <Text style={styles.brand}>此地有歌</Text>
-          <Text style={styles.en}>MUSICHERE</Text>
+          <Text style={styles.brand}>兔子电台</Text>
+          <Text style={styles.en}>PACER RADIO</Text>
         </View>
-        <Text style={styles.slogan}>让世界为你的歌伴奏</Text>
+        <Text style={styles.slogan}>步频掉了，音乐先快一点，把你带回去</Text>
         <View style={{ alignSelf: 'stretch', gap: 8 }}>
-          <Button label="30 秒听见共鸣" icon="pulse" variant="aurora" size="lg" onPress={tryDemo} loading={busy} testID="try-demo" />
+          <Button label="看兔子带跑 · 75 秒" icon="walk" variant="aurora" size="lg" onPress={tryDemo} loading={busy} testID="try-demo" />
           <Txt v="caption" style={{ textAlign: 'center' }}>
-            戴上耳机 · 不用麦克风、不用定位、不用注册
+            电脑上就能看：模拟跑者 · 不用麦克风、不用定位、不用注册
           </Txt>
         </View>
         <View style={styles.features}>
@@ -93,7 +93,7 @@ export function Welcome() {
           ) : null}
           <Button label="开始听" icon="arrow-forward" variant="subtle" size="lg" onPress={submit} loading={busy} testID="start" />
           <Txt v="caption" style={{ textAlign: 'center' }}>
-            进入完整版：此地记忆、漂流瓶、AI 读懂此刻。无需注册，昵称只用于展示
+            进入完整版：街头共鸣、此地记忆、漂流瓶、AI 读懂此刻。无需注册，昵称只用于展示
           </Txt>
         </View>
       </View>

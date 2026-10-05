@@ -137,7 +137,7 @@ const FAR = { latitude: 31.24 + 900 / 111195, longitude: 121.49, accuracy: 20 };
   });
 
   await step('共鸣：听见周围的拍子与调，歌曲对拍、定调（同时录下 15 秒片段）', async () => {
-    await page.getByTestId('tab-resonance').click();
+    await page.goto(new URL('/resonance', WEB_URL).toString());
     await V('res-start').waitFor();
     await V('song-night').click();
     await page.mouse.move(195, 420);
