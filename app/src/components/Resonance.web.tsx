@@ -5,8 +5,10 @@ import { Pressable, StyleSheet, Switch, Text, useWindowDimensions, View } from '
 import { api, type Category, type Engine as AiEngine, type Place, type ResonanceSummary } from '../lib/api';
 import { useToast } from '../lib/feedback';
 import { checkinAllowanceM } from '../lib/format';
+import { consumeAutoDemo } from '../lib/demo';
 import { useLocation } from '../lib/location';
 import { pickScenePhoto, PickError } from '../lib/pickImage';
+import { DEMO_SCENES, type DemoScene } from '../lib/resonance/demo-street';
 import { chooseTranspose, fitTempo, keyName, pcName, type Mode, type Tonality } from '../lib/resonance/dsp';
 import { ResonanceEngine, SPACES, type EngineState, type SpaceId } from '../lib/resonance/engine';
 import { EnvListener, type EnvSnapshot } from '../lib/resonance/listener';
@@ -26,6 +28,11 @@ import { AIBadge, Button, Card, Pill, Screen, Segmented, Txt } from './ui';
  */
 
 type ResMode = 'street' | 'run' | 'scape';
+type Input = 'mic' | 'demo';
+
+/** 浏览器只在 HTTPS / localhost 下给麦克风；纯 HTTP 的演示站直接默认用模拟街头 */
+const MIC_OK = typeof navigator !== 'undefined' && !!navigator.mediaDevices?.getUserMedia && (typeof window === 'undefined' || window.isSecureContext !== false);
+const sceneOf = (id: DemoScene['id']) => DEMO_SCENES.find((s) => s.id === id) ?? DEMO_SCENES[0]!;
 
 interface SceneMix {
   summary: string;
@@ -67,6 +74,9 @@ export function ResonanceScreen() {
   const [running, setRunning] = useState(false);
   const [starting, setStarting] = useState(false);
   const [micError, setMicError] = useState<string | null>(null);
+  const [input, setInput] = useState<Input>(MIC_OK ? 'mic' : 'demo');
+  const [demoId, setDemoId] = useState<DemoScene['id']>('walk');
+  const [usingDemo, setUsingDemo] = useState(false);
   const [beatOn, setBeatOn] = useState(true);
   const [keyOn, setKeyOn] = useState(true);
   const [sceneOn, setSceneOn] = useState(true);
@@ -270,7 +280,15 @@ export function ResonanceScreen() {
 
   useEffect(() => stop, [stop]);
 
-  const start = async () => {
+  // 从欢迎页点了「30 秒听见共鸣」：进来就自动开始，用模拟街头
+  useEffect(() => {
+    if (!consumeAutoDemo()) return;
+    setInput('demo');
+    void start(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const start = async (forceDemo = false) => {
     setStarting(true);
     setMicError(null);
     try {
@@ -286,10 +304,26 @@ export function ResonanceScreen() {
         if (beatOnRef.current) eng.duck();
       };
       try {
-        await lis.start();
+        // 模拟街头：评委不在街上、没有麦克风权限、站点不是 HTTPS 时，也能看见「对拍 → 定调」
+        let demo = forceDemo || input === 'demo';
+        if (!demo) {
+          try {
+            await lis.start();
+          } catch (err) {
+            if (modeRef.current === 'run') throw err;
+            demo = true;
+            setMicError(
+              MIC_OK
+                ? '没有麦克风权限，已改用「模拟街头」：一段合成的脚步和嗡鸣，照样能看到歌怎么跟上它。'
+                : '当前页面不是 HTTPS，浏览器不允许使用麦克风，已改用「模拟街头」。换成 HTTPS 地址即可听你身边的真实世界。',
+            );
+          }
+        }
+        if (demo) await lis.startDemo(sceneOf(demoId));
+        setUsingDemo(demo);
         eng.attachMic(lis.source);
         listenerRef.current = lis;
-        void lis.startMotion();
+        if (!demo) void lis.startMotion();
         lis.onStep = (t) => {
           if (modeRef.current !== 'run' || !eng.playing) return;
           const beats = eng.beats.filter((b) => b <= t);
@@ -475,6 +509,42 @@ export function ResonanceScreen() {
         ]}
       />
 
+      {mode !== 'run' ? (
+        <Card style={{ gap: 10 }} testID="res-input">
+          <View style={styles.rowBetween}>
+            <Txt v="title">世界从哪来</Txt>
+            {running && usingDemo ? <Pill label="模拟街头" icon="flask" color={colors.sky} /> : null}
+          </View>
+          {!running ? (
+            <Segmented<Input>
+              value={input}
+              onChange={setInput}
+              options={[
+                { key: 'mic', label: '真实麦克风', testID: 'res-input-mic' },
+                { key: 'demo', label: '模拟街头', testID: 'res-input-demo' },
+              ]}
+            />
+          ) : null}
+          {(running ? usingDemo : input === 'demo') ? (
+            <View style={{ gap: 8 }}>
+              <Segmented<DemoScene['id']>
+                value={demoId}
+                onChange={(id) => {
+                  setDemoId(id);
+                  listenerRef.current?.setDemoScene(sceneOf(id));
+                }}
+                options={DEMO_SCENES.map((s) => ({ key: s.id, label: s.label, testID: `res-scene-${s.id}` }))}
+              />
+              <Txt v="caption">
+                {sceneOf(demoId).hint}。{running ? '切换场景，看歌多久重新跟上。' : '不需要麦克风权限，也不用真的走到街上。'}
+              </Txt>
+            </View>
+          ) : (
+            <Txt v="caption">用手机麦克风听身边的真实世界；声音只在本机分析。{MIC_OK ? '' : '（当前不是 HTTPS，浏览器不会给麦克风）'}</Txt>
+          )}
+        </Card>
+      ) : null}
+
       <View style={styles.vizCard}>
         <ResonanceViz engine={engineRef} listener={listenerRef} hits={hitsRef} size={vizSize} />
         <View style={styles.legend}>
@@ -496,12 +566,26 @@ export function ResonanceScreen() {
             icon={mode === 'run' ? 'walk' : mode === 'scape' ? 'leaf' : 'pulse'}
             variant="aurora"
             size="lg"
-            onPress={start}
+            onPress={() => void start()}
             loading={starting}
             testID="res-start"
             style={{ alignSelf: 'stretch' }}
           />
         )}
+        {running && mode === 'street' ? (
+          <Button
+            label={beatOn && keyOn ? '听听没有共鸣的样子' : '打开共鸣'}
+            icon={beatOn && keyOn ? 'eye-off' : 'pulse'}
+            variant="subtle"
+            onPress={() => {
+              const next = !(beatOn && keyOn);
+              setBeatOn(next);
+              setKeyOn(next);
+            }}
+            testID="res-ab"
+            style={{ alignSelf: 'stretch' }}
+          />
+        ) : null}
         {micError ? <Txt v="caption" style={{ color: colors.sunset }}>{micError}</Txt> : null}
       </View>
 

@@ -1,3 +1,4 @@
+import { renderStreet, type DemoScene } from './demo-street';
 import {
   chromaFromSpectrum,
   detectTonality,
@@ -102,9 +103,12 @@ class Ring {
 
 export class EnvListener {
   readonly ctx: AudioContext;
-  source: MediaStreamAudioSourceNode | null = null;
+  /** 分析的输入：真实麦克风，或模拟街头的混音节点 */
+  source: AudioNode | null = null;
   private stream: MediaStream | null = null;
+  private demo: { mix: GainNode; monitor: GainNode; playing: AudioBufferSourceNode | null; buffers: Map<string, AudioBuffer> } | null = null;
   private node: AudioWorkletNode | null = null;
+  private proc: ScriptProcessorNode | null = null;
   private analyser: AnalyserNode | null = null;
   private fps = 93.75;
   private onsets: Ring;
@@ -148,16 +152,93 @@ export class EnvListener {
     this.stream = await navigator.mediaDevices.getUserMedia({
       audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false },
     });
-    const src = this.ctx.createMediaStreamSource(this.stream);
+    await this.wire(this.ctx.createMediaStreamSource(this.stream));
+  }
+
+  /**
+   * 不用麦克风：把一段合成的街头环境声当作「世界」，既喂给分析，也（小声）放出来，
+   * 这样不在街上、没有麦克风权限、站点不是 HTTPS 时也能体验对拍和定调。
+   */
+  async startDemo(scene: DemoScene): Promise<void> {
+    const mix = this.ctx.createGain();
+    const monitor = this.ctx.createGain();
+    monitor.gain.value = 0.5;
+    mix.connect(monitor).connect(this.ctx.destination);
+    this.demo = { mix, monitor, playing: null, buffers: new Map() };
+    this.playDemo(scene);
+    await this.wire(mix);
+  }
+
+  /** 换一个模拟场景（世界的拍子和调变了，看引擎多久重新跟上） */
+  setDemoScene(scene: DemoScene) {
+    if (!this.demo) return;
+    this.playDemo(scene);
+    // 旧场景的起音不该再参与估计：清空窗口，重新「听」
+    this.onsets.n = 0;
+    this.history = [];
+    this.micBeat = null;
+    this.hitMean = 0;
+    this.hitVar = 0;
+    this.candidate = { sig: '', n: 0 };
+    this.chroma.fill(0);
+    this.tonality = { kind: 'none' };
+  }
+
+  private playDemo(scene: DemoScene) {
+    const d = this.demo;
+    if (!d) return;
+    let buf = d.buffers.get(scene.id);
+    if (!buf) {
+      const pcm = renderStreet(scene, this.ctx.sampleRate);
+      buf = this.ctx.createBuffer(1, pcm.length, this.ctx.sampleRate);
+      buf.copyToChannel(pcm as Float32Array<ArrayBuffer>, 0);
+      d.buffers.set(scene.id, buf);
+    }
+    try {
+      d.playing?.stop();
+    } catch {}
+    d.playing?.disconnect();
+    const src = this.ctx.createBufferSource();
+    src.buffer = buf;
+    src.loop = true;
+    src.connect(d.mix);
+    src.start();
+    d.playing = src;
+  }
+
+  private async wire(src: AudioNode): Promise<void> {
     this.source = src;
-    const url = URL.createObjectURL(new Blob([WORKLET], { type: 'application/javascript' }));
-    await this.ctx.audioWorklet.addModule(url);
-    URL.revokeObjectURL(url);
-    this.node = new AudioWorkletNode(this.ctx, 'musichere-onset');
-    this.node.port.onmessage = (e: MessageEvent<{ t: number; low: number; full: number }>) => this.handleFrame(e.data);
     const sink = this.ctx.createGain();
     sink.gain.value = 0;
-    src.connect(this.node).connect(sink).connect(this.ctx.destination);
+    sink.connect(this.ctx.destination);
+    if (this.ctx.audioWorklet) {
+      const url = URL.createObjectURL(new Blob([WORKLET], { type: 'application/javascript' }));
+      await this.ctx.audioWorklet.addModule(url);
+      URL.revokeObjectURL(url);
+      this.node = new AudioWorkletNode(this.ctx, 'musichere-onset');
+      this.node.port.onmessage = (e: MessageEvent<{ t: number; low: number; full: number }>) => this.handleFrame(e.data);
+      src.connect(this.node).connect(sink);
+    } else {
+      // 纯 HTTP 页面里浏览器不提供 AudioWorklet（只在安全上下文可用）：退回到 ScriptProcessor，算法相同。
+      // 它已被标记为弃用，但所有浏览器仍支持，足够撑起「模拟街头」的演示。
+      const proc = this.ctx.createScriptProcessor(512, 1, 1);
+      let lp = 0;
+      const frame = 512 / this.ctx.sampleRate;
+      proc.onaudioprocess = (e) => {
+        const ch = e.inputBuffer.getChannelData(0);
+        let low = 0;
+        let full = 0;
+        for (let i = 0; i < ch.length; i++) {
+          const x = ch[i]!;
+          lp += 0.02 * (x - lp);
+          low += lp * lp;
+          full += x * x;
+        }
+        this.handleFrame({ t: e.playbackTime - frame, low: low / ch.length, full: full / ch.length });
+      };
+      src.connect(proc).connect(sink);
+      this.proc = proc;
+    }
 
     this.analyser = this.ctx.createAnalyser();
     this.analyser.fftSize = 16384;
@@ -188,7 +269,21 @@ export class EnvListener {
     this.timers.forEach(clearInterval);
     this.timers = [];
     this.stream?.getTracks().forEach((t) => t.stop());
+    if (this.demo) {
+      try {
+        this.demo.playing?.stop();
+      } catch {}
+      this.demo.playing?.disconnect();
+      this.demo.mix.disconnect();
+      this.demo.monitor.disconnect();
+      this.demo = null;
+    }
     this.node?.disconnect();
+    if (this.proc) {
+      this.proc.onaudioprocess = null;
+      this.proc.disconnect();
+      this.proc = null;
+    }
     this.source?.disconnect();
     this.analyser?.disconnect();
     if (this.motionOn) window.removeEventListener('devicemotion', this.onMotionEvent);

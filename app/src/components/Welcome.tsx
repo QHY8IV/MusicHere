@@ -2,15 +2,14 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useState } from 'react';
 import { KeyboardAvoidingView, Platform, StyleSheet, Text, View } from 'react-native';
 import { useAuth } from '../lib/auth';
+import { requestAutoDemo } from '../lib/demo';
 import { colors, gradients } from '../lib/theme';
 import { Vinyl } from './Art';
 import { Button, Field, Txt } from './ui';
 
 const FEATURES = [
-  { k: '共鸣', v: '让世界为你的歌伴奏：跟上它的节奏，落在它的调上' },
-  { k: '拍一下', v: 'AI 读懂此刻的光线与心情，挑一首歌' },
-  { k: '此地记忆', v: '听见前人在这里留下的歌和现场' },
-  { k: '漂流瓶', v: '把一首歌留给下一个路过的人' },
+  { k: '共鸣', v: '听出身边的节奏和音高，歌跟上脚步、落在街的调上' },
+  { k: '此地记忆', v: '听见前人在这里留下的歌和现场，也留一个漂流瓶' },
 ];
 
 export function Welcome() {
@@ -18,6 +17,20 @@ export function Welcome() {
   const [nickname, setNickname] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  /** 先听一听：用「路过的人」直接进来，跳到共鸣页自动开始模拟街头 */
+  const tryDemo = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      requestAutoDemo();
+      await register(nickname.trim() || '路过的人');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '进入失败，请重试');
+    } finally {
+      setBusy(false);
+    }
+  };
 
   const submit = async () => {
     const name = nickname.trim();
@@ -46,7 +59,13 @@ export function Welcome() {
           <Text style={styles.brand}>此地有歌</Text>
           <Text style={styles.en}>MUSICHERE</Text>
         </View>
-        <Text style={styles.slogan}>每个地方，都有它的背景音乐</Text>
+        <Text style={styles.slogan}>让世界为你的歌伴奏</Text>
+        <View style={{ alignSelf: 'stretch', gap: 8 }}>
+          <Button label="30 秒听见共鸣" icon="pulse" variant="aurora" size="lg" onPress={tryDemo} loading={busy} testID="try-demo" />
+          <Txt v="caption" style={{ textAlign: 'center' }}>
+            戴上耳机 · 不用麦克风、不用定位、不用注册
+          </Txt>
+        </View>
         <View style={styles.features}>
           {FEATURES.map((f) => (
             <View key={f.k} style={styles.feature}>
@@ -72,9 +91,9 @@ export function Welcome() {
               {error}
             </Text>
           ) : null}
-          <Button label="开始听" icon="arrow-forward" size="lg" onPress={submit} loading={busy} testID="start" />
+          <Button label="开始听" icon="arrow-forward" variant="subtle" size="lg" onPress={submit} loading={busy} testID="start" />
           <Txt v="caption" style={{ textAlign: 'center' }}>
-            无需注册，昵称只用于展示
+            进入完整版：此地记忆、漂流瓶、AI 读懂此刻。无需注册，昵称只用于展示
           </Txt>
         </View>
       </View>
